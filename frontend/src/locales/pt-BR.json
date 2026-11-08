@@ -2492,7 +2492,12 @@
       "project": "Projeto",
       "client": "Cliente",
       "other": "Outro"
-    }
+    },
+    "applyToNextInstallments": "Dividir também as próximas parcelas desta compra (a partir da {{current}}/{{total}}), inclusive as que ainda vão chegar",
+    "upcoming": "A vencer",
+    "upcomingDesc": "Parcelas com data futura, que passam a contar no saldo quando vencerem.",
+    "upcomingOwesYou": "{{name}} vai te dever",
+    "upcomingYouOwe": "Você vai dever a {{name}}"
   },
   "privacy": {
     "hide": "Ocultar valores",

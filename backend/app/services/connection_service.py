@@ -29,7 +29,7 @@ from app.models.transaction import Transaction
 from app.models.transaction_category_line import TransactionCategoryLine
 from app.models.user import User
 from app.providers import get_provider
-from app.services import provider_credential_service
+from app.services import installment_split_service, provider_credential_service
 from app.providers.base import (
     AccountData,
     BankProvider,
@@ -1610,6 +1610,7 @@ async def handle_oauth_callback(
             .all()
         )
         await reconciliation_service.match_incoming(session, workspace_id, landed)
+        await installment_split_service.apply_rules(session, landed)
 
     # Investment holdings live on /investments — separate endpoint from
     # /accounts. Fetched before the account loop and stored here once the
@@ -2971,6 +2972,8 @@ async def sync_connection(
             await reconciliation_service.match_incoming(
                 session, workspace_id, landed
             )
+            # Parcels of a purchase someone shares get its split.
+            await installment_split_service.apply_rules(session, landed)
 
         # Clean up phantom duplicates: providers occasionally double-report the
         # same payment with different ids. Once transfer detection has paired

@@ -15,6 +15,11 @@ an owner who isn't a member of the group.
 
 Mixed currencies are kept as separate lines (each line also carries its
 amount in the group's default currency).
+
+Only shares of transactions dated up to today count towards the balance.
+Shares of later-dated transactions (card installments a bank reports ahead
+of time, for instance) are returned apart as `upcoming_lines`, so the
+balance says what is owed now and the upcoming parcels what will be.
 """
 
 import uuid
@@ -91,25 +96,40 @@ async def compute_balances(
         lambda: defaultdict(lambda: Decimal("0"))
     )
 
+    # Shares of transactions dated after today are upcoming, not owed yet.
+    from app.core.app_clock import get_workspace_timezone, today_in
+
+    today = today_in(await get_workspace_timezone(session, group.workspace_id))
+    upcoming: dict[tuple[uuid.UUID, uuid.UUID], dict[str, Decimal]] = defaultdict(
+        lambda: defaultdict(lambda: Decimal("0"))
+    )
+
     # Splits: each member's share of a transaction someone else paid is
     # what they owe the payer.
     splits_result = await session.execute(
-        select(TransactionSplit, Transaction.currency, Transaction.user_id, Transaction.type)
+        select(
+            TransactionSplit,
+            Transaction.currency,
+            Transaction.user_id,
+            Transaction.type,
+            Transaction.date,
+        )
         .join(Transaction, TransactionSplit.transaction_id == Transaction.id)
         .join(GroupMember, TransactionSplit.group_member_id == GroupMember.id)
         .where(GroupMember.group_id == group_id)
     )
-    for split, currency, recorder_id, tx_type in splits_result.all():
+    for split, currency, recorder_id, tx_type, tx_date in splits_result.all():
         recorder = member_by_user.get(recorder_id, default_payer)
         if split.group_member_id == recorder:
             continue
         share = Decimal(str(split.share_amount))
+        ledger = upcoming if tx_date is not None and tx_date > today else owed
         if tx_type == "credit":
             # Income: the recorder received the money, so they owe each
             # other member that member's share.
-            owed[(recorder, split.group_member_id)][currency] += share
+            ledger[(recorder, split.group_member_id)][currency] += share
         else:
-            owed[(split.group_member_id, recorder)][currency] += share
+            ledger[(split.group_member_id, recorder)][currency] += share
 
     # Settlements: `from` paid `to`, which reduces what `from` owes `to`.
     settlements_result = await session.execute(
@@ -118,21 +138,7 @@ async def compute_balances(
     for s in settlements_result.scalars().all():
         owed[(s.from_member_id, s.to_member_id)][s.currency] -= Decimal(str(s.amount))
 
-    # Project onto the caller: member_id -> currency -> what they owe the caller.
-    totals: dict[uuid.UUID, dict[str, Decimal]] = defaultdict(
-        lambda: defaultdict(lambda: Decimal("0"))
-    )
     caller = self_member.id if self_member is not None else _GROUP_OWNER
-    for (debtor, creditor), by_currency in owed.items():
-        # A member can't be shown a debt to or from an owner who has no
-        # member row: there is no name or GroupMember id to show it under.
-        if self_member is not None and _GROUP_OWNER in (debtor, creditor):
-            continue
-        for currency, amount in by_currency.items():
-            if creditor == caller:
-                totals[debtor][currency] += amount
-            elif debtor == caller:
-                totals[creditor][currency] -= amount
 
     # FX-convert each line to the group's default currency so the
     # frontend can roll cross-currency lines up into a single KPI
@@ -141,30 +147,48 @@ async def compute_balances(
 
     default_currency = group.default_currency
 
-    lines = []
-    for member_id, by_currency in totals.items():
-        for currency, amount in by_currency.items():
-            if amount == 0:
+    async def project(ledger: dict) -> list[dict]:
+        # Project onto the caller: member_id -> currency -> what they owe the caller.
+        totals: dict[uuid.UUID, dict[str, Decimal]] = defaultdict(
+            lambda: defaultdict(lambda: Decimal("0"))
+        )
+        for (debtor, creditor), by_currency in ledger.items():
+            # A member can't be shown a debt to or from an owner who has no
+            # member row: there is no name or GroupMember id to show it under.
+            if self_member is not None and _GROUP_OWNER in (debtor, creditor):
                 continue
-            if currency == default_currency:
-                amount_in_default = amount
-            else:
-                converted, _ = await _fx_convert(
-                    session, amount, currency, default_currency
+            for currency, amount in by_currency.items():
+                if creditor == caller:
+                    totals[debtor][currency] += amount
+                elif debtor == caller:
+                    totals[creditor][currency] -= amount
+
+        lines = []
+        for member_id, by_currency in totals.items():
+            for currency, amount in by_currency.items():
+                if amount == 0:
+                    continue
+                if currency == default_currency:
+                    amount_in_default = amount
+                else:
+                    converted, _ = await _fx_convert(
+                        session, amount, currency, default_currency
+                    )
+                    amount_in_default = converted
+                lines.append(
+                    {
+                        "member_id": member_id,
+                        "currency": currency,
+                        "amount": amount,
+                        "amount_in_default_currency": amount_in_default,
+                    }
                 )
-                amount_in_default = converted
-            lines.append(
-                {
-                    "member_id": member_id,
-                    "currency": currency,
-                    "amount": amount,
-                    "amount_in_default_currency": amount_in_default,
-                }
-            )
+        return lines
 
     return {
         "group_id": group_id,
         "self_member_id": self_member.id if self_member else None,
         "default_currency": default_currency,
-        "lines": lines,
+        "lines": await project(owed),
+        "upcoming_lines": await project(upcoming),
     }

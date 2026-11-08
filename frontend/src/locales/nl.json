@@ -2490,7 +2490,12 @@
       "other": "Anders"
     },
     "confirmDeleteTitle": "Groep verwijderen?",
-    "confirmDeleteDescription": "De groep \"{{name}}\" en de leden ervan worden permanent verwijderd. Groepen waarnaar wordt verwezen door transactiesplitsingen of afrekeningen kunnen pas worden verwijderd als die verwijzingen zijn weggehaald. Deze actie kan niet ongedaan worden gemaakt."
+    "confirmDeleteDescription": "De groep \"{{name}}\" en de leden ervan worden permanent verwijderd. Groepen waarnaar wordt verwezen door transactiesplitsingen of afrekeningen kunnen pas worden verwijderd als die verwijzingen zijn weggehaald. Deze actie kan niet ongedaan worden gemaakt.",
+    "applyToNextInstallments": "Also split the next parcels of this purchase (from {{current}}/{{total}} on), including the ones still to come",
+    "upcoming": "Upcoming",
+    "upcomingDesc": "Parcels dated in the future; they count towards the balance once due.",
+    "upcomingOwesYou": "{{name}} will owe you",
+    "upcomingYouOwe": "You will owe {{name}}"
   },
   "privacy": {
     "hide": "Waarden verbergen",

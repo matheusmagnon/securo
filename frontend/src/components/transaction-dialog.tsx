@@ -517,6 +517,15 @@ function TransactionForm({
     const existing = (seed as Transaction | null | undefined)?.splits
     return !!(existing && existing.length > 0)
   })
+  // A synced card parcel ("3/4"): the split can follow the purchase to its
+  // later parcels, including the ones the next syncs import.
+  const isSharedInstallmentCandidate =
+    !!transaction &&
+    (transaction.total_installments ?? 0) > 1 &&
+    transaction.installment_number != null &&
+    !!transaction.installment_purchase_date
+  const [splitInstallments, setSplitInstallments] = useState(true)
+  const initialSplitsJson = useRef(JSON.stringify(splits))
   // Split across several categories (#425). `null` = one category (or none).
   // Seeded from the transaction's lines, so editing round-trips them and
   // duplicating a split row copies its parts.
@@ -877,11 +886,21 @@ function TransactionForm({
         // missing `splits` field as untouched and a present payload as
         // full replacement. To clear existing splits when the user
         // toggles off, send an explicit empty payload.
-        const splitsPayload: { splits?: TransactionSplitsInput } = splits
+        const splitsPayload: { splits?: TransactionSplitsInput; split_installments?: boolean } = splits
           ? { splits }
           : hadInitialSplits
             ? { splits: { share_type: 'equal', splits: [] } }
             : {}
+        // Only a changed split travels to the later parcels, so saving a
+        // note doesn't overwrite a parcel someone split differently.
+        if (
+          isSharedInstallmentCandidate &&
+          splitInstallments &&
+          splitsPayload.splits &&
+          JSON.stringify(splits) !== initialSplitsJson.current
+        ) {
+          splitsPayload.split_installments = true
+        }
         // Category parts follow the same rule as `splits`: absent keeps them,
         // a list replaces them, an empty list undoes the split. While split,
         // the row has no category of its own.
@@ -1429,6 +1448,23 @@ function TransactionForm({
           onChange={setSplits}
           onValidityChange={setSplitsValid}
         />
+      )}
+      {transaction?.source !== 'settlement' && !splitByCategory && isSharedInstallmentCandidate &&
+        (splits || hadInitialSplits) && (
+        <label className="flex items-start gap-2 text-sm text-muted-foreground -mt-2">
+          <input
+            type="checkbox"
+            className="mt-0.5 h-4 w-4 rounded border-border"
+            checked={splitInstallments}
+            onChange={(e) => setSplitInstallments(e.target.checked)}
+          />
+          <span>
+            {t('splitGroups.applyToNextInstallments', {
+              current: transaction?.installment_number,
+              total: transaction?.total_installments,
+            })}
+          </span>
+        </label>
       )}
 
       {!isCreating && !splitByCategory && !transaction?.has_category_lines && transaction?.type === 'debit' && transaction.status === 'posted' && !transaction.is_ignored && !transaction.transfer_pair_id && !transaction.category?.is_ignored && Number(transaction.amount) > 0 && accounts.find(a => a.id === transaction.account_id)?.type !== 'loan' && accounts.some(a => a.type === 'loan' && a.secured_asset_id) && (

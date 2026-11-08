@@ -84,7 +84,11 @@ class GroupBalances(BaseModel):
     group_id: uuid.UUID
     self_member_id: Optional[uuid.UUID] = None
     default_currency: str
+    # Owed now: shares of transactions dated up to today, minus settlements.
     lines: list[GroupBalanceLine] = []
+    # Shares of later-dated transactions (installments reported ahead of
+    # time), owed once their date arrives.
+    upcoming_lines: list[GroupBalanceLine] = []
 
 
 class GroupSummaryMonth(BaseModel):

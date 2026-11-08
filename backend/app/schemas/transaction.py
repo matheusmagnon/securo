@@ -127,6 +127,9 @@ class TransactionUpdate(BaseModel):
     # same series; "all" touches every row in the series. Ignored when the
     # transaction has no installment fingerprint.
     apply_to: Literal["this", "future", "all"] = "this"
+    # With `splits`: also split every later parcel of this installment
+    # purchase, including parcels that later syncs import.
+    split_installments: bool = False
 
 
 class InstallmentSeriesCreate(BaseModel):

@@ -2648,7 +2648,12 @@
     "splitWays_one": "rozděleno mezi {{count}} člena",
     "splitWays_few": "rozděleno mezi {{count}} členy",
     "splitWays_many": "rozděleno mezi {{count}} člena",
-    "splitWays_other": "rozděleno mezi {{count}} členů"
+    "splitWays_other": "rozděleno mezi {{count}} členů",
+    "applyToNextInstallments": "Also split the next parcels of this purchase (from {{current}}/{{total}} on), including the ones still to come",
+    "upcoming": "Upcoming",
+    "upcomingDesc": "Parcels dated in the future; they count towards the balance once due.",
+    "upcomingOwesYou": "{{name}} will owe you",
+    "upcomingYouOwe": "You will owe {{name}}"
   },
   "privacy": {
     "hide": "Skrýt hodnoty",

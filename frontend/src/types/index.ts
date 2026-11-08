@@ -446,6 +446,8 @@ export interface TransactionSplitsInput {
 export type TransactionEditPayload = Omit<Partial<Transaction>, 'splits' | 'category_lines'> & {
   splits?: TransactionSplitsInput | null
   category_lines?: TransactionCategoryLinesInput
+  /** With `splits`: also split the later parcels of this installment purchase. */
+  split_installments?: boolean
 }
 
 export type GroupKind = 'social' | 'cost_center' | 'project' | 'client' | 'other'
@@ -505,6 +507,8 @@ export interface GroupBalances {
   self_member_id: string | null
   default_currency: string
   lines: GroupBalanceLine[]
+  /** Shares of later-dated transactions (future parcels), not owed yet. */
+  upcoming_lines?: GroupBalanceLine[]
 }
 
 export interface GroupSummaryMonth {

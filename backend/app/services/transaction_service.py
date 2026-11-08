@@ -29,6 +29,7 @@ from app.schemas.transaction import (
 )
 from app.schemas.transaction_split import TransactionSplitInput, TransactionSplitsInput
 from app.services import category_line_service, reconciliation_service, split_service
+from app.services import installment_split_service
 from app.services.account_service import get_account, get_running_balances
 from app.services.credit_card_service import apply_effective_date, cc_cycle_bill_due_dates
 from app.services.rule_service import apply_rules_to_transaction
@@ -1809,6 +1810,7 @@ async def update_transaction(
     update_data = data.model_dump(exclude_unset=True)
     apply_to_transfer_pair = update_data.pop("apply_to_transfer_pair", False)
     apply_to = update_data.pop("apply_to", "this")
+    split_installments = update_data.pop("split_installments", False)
 
     # Splits are processed separately after column updates land so the
     # service can validate against the new amount.
@@ -1978,6 +1980,14 @@ async def update_transaction(
     if "amount" in update_data and _is_installment(transaction):
         await session.flush()
         await _resync_installment_series_total(session, workspace_id, transaction)
+
+    # "This and the next installments": the later parcels of the purchase,
+    # including the ones future syncs bring, get the same split.
+    if split_installments and splits_payload is not None:
+        await session.flush()
+        await installment_split_service.set_series_split(
+            session, transaction, splits_payload, user_id
+        )
 
     await session.commit()
     await session.refresh(transaction, ["category", "payee_entity", "splits", "category_lines"])
