@@ -524,7 +524,10 @@ function TransactionForm({
     (transaction.total_installments ?? 0) > 1 &&
     transaction.installment_number != null &&
     !!transaction.installment_purchase_date
-  const [splitInstallments, setSplitInstallments] = useState(true)
+  // Checked by default when splitting a parcel for the first time. On a
+  // parcel that is already split it starts unchecked, so ticking it is the
+  // explicit "carry this split to the next parcels".
+  const [splitInstallments, setSplitInstallments] = useState(!hadInitialSplits)
   const initialSplitsJson = useRef(JSON.stringify(splits))
   // Split across several categories (#425). `null` = one category (or none).
   // Seeded from the transaction's lines, so editing round-trips them and
@@ -891,13 +894,14 @@ function TransactionForm({
           : hadInitialSplits
             ? { splits: { share_type: 'equal', splits: [] } }
             : {}
-        // Only a changed split travels to the later parcels, so saving a
-        // note doesn't overwrite a parcel someone split differently.
+        // A new or changed split travels to the later parcels; an unchanged
+        // one only when the box was ticked on an already-split parcel, so
+        // saving a note doesn't overwrite parcels split differently.
         if (
           isSharedInstallmentCandidate &&
           splitInstallments &&
           splitsPayload.splits &&
-          JSON.stringify(splits) !== initialSplitsJson.current
+          (hadInitialSplits || JSON.stringify(splits) !== initialSplitsJson.current)
         ) {
           splitsPayload.split_installments = true
         }
