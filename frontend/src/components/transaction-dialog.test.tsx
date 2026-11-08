@@ -545,3 +545,64 @@ it('Enter in a field does not save parts that do not add up', async () => {
   await user.type(first, '30{Enter}')
   expect(onSave).not.toHaveBeenCalled()
 })
+
+// --- split among people, seeded from an existing split ------------------------
+
+const casaGroup = {
+  id: 'grp-casa',
+  user_id: 'owner',
+  name: 'Casa',
+  kind: 'social',
+  default_currency: 'BRL',
+  notes: null,
+  is_archived: false,
+  is_owner: false,
+  members: [
+    { id: 'm-owner', group_id: 'grp-casa', name: 'matheusmagnon', email: null, linked_user_id: 'owner', is_self: false },
+    { id: 'm-her', group_id: 'grp-casa', name: 'yannabiatriz', email: null, linked_user_id: 'synthetic-user', is_self: true },
+  ],
+} as never
+
+function splitAmongPeopleFixture(): Transaction {
+  return transferLegFixture('unused', {
+    id: 'tx-parcel',
+    description: 'AUTOMATICAR PARC 02/03 PALMAS BR',
+    amount: 311.66,
+    currency: 'BRL',
+    source: 'sync',
+    transfer_pair_id: null,
+    installment_number: 2,
+    total_installments: 3,
+    installment_purchase_date: '2026-09-15',
+    splits: [
+      { id: 's1', transaction_id: 'tx-parcel', group_member_id: 'm-owner', share_amount: '155.83', share_type: 'equal', share_pct: null, notes: null, created_at: '' },
+      { id: 's2', transaction_id: 'tx-parcel', group_member_id: 'm-her', share_amount: '155.83', share_type: 'equal', share_pct: null, notes: null, created_at: '' },
+    ] as never,
+  })
+}
+
+it('keeps an existing split among people valid, so save stays enabled', async () => {
+  vi.spyOn(currencies, 'list').mockResolvedValue([])
+  vi.spyOn(payees, 'list').mockResolvedValue([])
+  vi.spyOn(groups, 'list').mockResolvedValue([casaGroup])
+  vi.spyOn(groups, 'get').mockResolvedValue(casaGroup)
+  renderWithProviders(
+    <TransactionDialog
+      open
+      onClose={vi.fn()}
+      transaction={splitAmongPeopleFixture()}
+      categories={[]}
+      categoryGroups={[]}
+      accounts={accountFixtures}
+      onSave={vi.fn()}
+      loading={false}
+      error={null}
+    />,
+  )
+  expect(await screen.findByText('yannabiatriz')).toBeInTheDocument()
+  // The seeded split comes back selected…
+  expect(await screen.findByRole('checkbox', { name: /matheusmagnon/ })).toBeChecked()
+  expect(screen.getByRole('checkbox', { name: /yannabiatriz/ })).toBeChecked()
+  // …so the split is valid and saving is possible without touching it.
+  expect(screen.getByRole('button', { name: t('common.save') })).toBeEnabled()
+})

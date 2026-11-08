@@ -185,12 +185,16 @@ export function TransactionSplitsSection({
 
     const groupChanged = lastGroupIdRef.current !== group.id
     lastGroupIdRef.current = group.id
+    // Read the flag here, not inside the updater: React may run the updater
+    // after the line below has already flipped it, which used to drop the
+    // seeded split and open an existing split with nobody selected.
+    const firstHydration = !hydratedRef.current
+    hydratedRef.current = true
 
     setRows((prevRows) => {
       // If first hydration or switched groups, rebuild completely
-      if (!hydratedRef.current || groupChanged) {
-        const source = hydratedRef.current ? null : seedRef.current
-        return buildRows(group, source)
+      if (firstHydration || groupChanged) {
+        return buildRows(group, firstHydration ? seedRef.current : null)
       }
 
       // Otherwise, merge new group members into existing rows state to preserve user selections
@@ -206,8 +210,6 @@ export function TransactionSplitsSection({
         }
       })
     })
-
-    hydratedRef.current = true
   }, [group])
 
   // Push state up whenever it changes meaningfully.
