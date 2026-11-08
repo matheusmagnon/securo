@@ -3183,5 +3183,22 @@
       "categoryInUse": "Diese Kategorie enthält Anteile aufgeteilter Buchungen. Ändere zuerst diese Aufteilungen.",
       "destinationInvalid": "Anteile aufgeteilter Buchungen können nicht in eine ignorierte oder ausgeblendete Kategorie wechseln."
     }
+  },
+  "providerCredentials": {
+    "title": "My {{provider}} credentials",
+    "description": "Use your own {{provider}} account to connect your banks. Each person on this instance can have their own; the secret is stored encrypted and never shown again.",
+    "pluggyStep1": "Create your account and connect your banks at",
+    "pluggyStep2": "Create a Team and an Application at",
+    "pluggyStep3": "Copy the application's Client ID and Client Secret and paste them below.",
+    "secretKept": "•••••••• (type again to change)",
+    "validating": "Validating…",
+    "saved": "Credentials saved and validated",
+    "removed": "Credentials removed",
+    "invalid": "Pluggy rejected these credentials. Check the Client ID and Client Secret.",
+    "saveError": "Could not save the credentials",
+    "remove": "Remove",
+    "needsOwn": "Click to enter your own credentials and enable this connector.",
+    "useOwn": "Use my own credentials",
+    "usingOwn": "Using my own credentials (change)"
   }
 }

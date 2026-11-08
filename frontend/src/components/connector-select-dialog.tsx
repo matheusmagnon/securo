@@ -7,7 +7,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Building2 } from 'lucide-react'
+import { Building2, KeyRound } from 'lucide-react'
+import { ProviderCredentialsDialog } from '@/components/provider-credentials-dialog'
 
 export interface Provider {
   name: string
@@ -17,6 +18,8 @@ export interface Provider {
   configured: boolean
   requires_institution_select?: boolean
   supports_asset_sync?: boolean
+  supports_user_credentials?: boolean
+  has_user_credentials?: boolean
 }
 
 interface ConnectorSelectDialogProps {
@@ -33,6 +36,8 @@ function ConnectorSelectSession({ open, onClose, onSelect }: ConnectorSelectDial
   const { t } = useTranslation()
   const [providers, setProviders] = useState<Provider[]>([])
   const [loading, setLoading] = useState(true)
+  const [credentialsFor, setCredentialsFor] = useState<Provider | null>(null)
+  const [reloadKey, setReloadKey] = useState(0)
 
   useEffect(() => {
     let cancelled = false
@@ -46,7 +51,19 @@ function ConnectorSelectSession({ open, onClose, onSelect }: ConnectorSelectDial
       setLoading(false)
     })
     return () => { cancelled = true }
-  }, [])
+  }, [reloadKey])
+
+  if (credentialsFor) {
+    return (
+      <ProviderCredentialsDialog
+        open
+        provider={credentialsFor.name}
+        providerName={credentialsFor.display_name}
+        onClose={() => setCredentialsFor(null)}
+        onChanged={() => setReloadKey((k) => k + 1)}
+      />
+    )
+  }
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
@@ -66,15 +83,20 @@ function ConnectorSelectSession({ open, onClose, onSelect }: ConnectorSelectDial
             </p>
           ) : (
             providers.map((p) => (
+              <div key={p.name} className="space-y-1">
               <button
-                key={p.name}
-                disabled={!p.configured}
+                disabled={!p.configured && !p.supports_user_credentials}
                 onClick={() => {
+                  if (!p.configured) {
+                    // Not set up on the instance: let the user bring their own.
+                    setCredentialsFor(p)
+                    return
+                  }
                   onSelect(p)
                   onClose()
                 }}
                 className={`w-full flex items-start gap-3 rounded-lg border p-4 text-left transition-colors ${
-                  p.configured
+                  p.configured || p.supports_user_credentials
                     ? 'border-border hover:border-primary hover:bg-muted/50 cursor-pointer'
                     : 'border-border/50 opacity-60 cursor-not-allowed'
                 }`}
@@ -87,11 +109,26 @@ function ConnectorSelectSession({ open, onClose, onSelect }: ConnectorSelectDial
                   <p className="text-xs text-muted-foreground mt-0.5">{t(`accounts.providers.${p.name}.description`, p.description)}</p>
                   {!p.configured && (
                     <p className="text-xs text-amber-600 mt-1.5">
-                      {t('accounts.connectorNotConfigured')}
+                      {p.supports_user_credentials
+                        ? t('providerCredentials.needsOwn')
+                        : t('accounts.connectorNotConfigured')}
                     </p>
                   )}
                 </div>
               </button>
+              {p.supports_user_credentials && p.configured && (
+                <button
+                  type="button"
+                  onClick={() => setCredentialsFor(p)}
+                  className="flex items-center gap-1.5 px-1 text-xs text-muted-foreground hover:text-foreground"
+                >
+                  <KeyRound size={12} />
+                  {p.has_user_credentials
+                    ? t('providerCredentials.usingOwn')
+                    : t('providerCredentials.useOwn')}
+                </button>
+              )}
+              </div>
             ))
           )}
         </div>

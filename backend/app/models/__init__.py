@@ -5,6 +5,7 @@ from app.models.workspace import Workspace, WorkspaceMember, WorkspaceTaxId
 from app.models.category import Category
 from app.models.category_group import CategoryGroup
 from app.models.bank_connection import BankConnection
+from app.models.provider_credential import ProviderCredential
 from app.models.institution import Institution
 from app.models.account import Account
 from app.models.transaction import Transaction
@@ -53,6 +54,7 @@ from app.core import workspace_autostamp  # noqa: F401, E402
 
 __all__ = [
     "AccessToken",
+    "ProviderCredential",
     "User",
     "UserPasskey",
     "Workspace",

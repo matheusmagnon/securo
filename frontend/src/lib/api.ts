@@ -414,9 +414,21 @@ export const connections = {
     const { data } = await api.get('/connections')
     return data
   },
-  getProviders: async (): Promise<{ name: string; display_name: string; description: string; flow_type: string; configured: boolean; requires_institution_select?: boolean; supports_asset_sync?: boolean }[]> => {
+  getProviders: async (): Promise<{ name: string; display_name: string; description: string; flow_type: string; configured: boolean; requires_institution_select?: boolean; supports_asset_sync?: boolean; supports_user_credentials?: boolean; has_user_credentials?: boolean }[]> => {
     const { data } = await api.get('/connections/providers')
     return data.providers
+  },
+  getProviderCredentials: async (
+    provider: string,
+  ): Promise<{ provider: string; configured: boolean; client_id?: string | null; updated_at?: string | null }> => {
+    const { data } = await api.get(`/connections/credentials/${provider}`)
+    return data
+  },
+  saveProviderCredentials: async (provider: string, client_id: string, client_secret: string): Promise<void> => {
+    await api.put(`/connections/credentials/${provider}`, { client_id, client_secret }, readOnly)
+  },
+  deleteProviderCredentials: async (provider: string): Promise<void> => {
+    await api.delete(`/connections/credentials/${provider}`, readOnly)
   },
   getConnectToken: async (provider = 'pluggy'): Promise<string> => {
     const { data } = await api.post('/connections/connect-token', { provider }, readOnly)

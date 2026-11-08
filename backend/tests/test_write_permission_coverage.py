@@ -37,6 +37,8 @@ WRITE_GATES = {"current_writable_workspace"}
 ALLOWLIST: dict[tuple[str, str], str] = {
     # Not workspace-scoped: the actor is the user, on their own account.
     ("PATCH", "/me"): "the requester's own user record",
+    ("PUT", "/api/connections/credentials/{provider}"): "the requester's own provider credentials",
+    ("DELETE", "/api/connections/credentials/{provider}"): "the requester's own provider credentials",
     ("POST", "/2fa/setup"): "the requester's own second factor",
     ("POST", "/2fa/enable"): "the requester's own second factor",
     ("POST", "/2fa/disable"): "the requester's own second factor",

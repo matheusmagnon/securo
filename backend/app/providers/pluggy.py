@@ -449,8 +449,21 @@ class PluggyProvider(BankProvider):
     3. Widget returns an Item ID which is used as the connection identifier
     """
 
-    _api_key: Optional[str] = None
-    _api_key_expires_at: float = 0
+    # API keys cached per client ID: several users of one instance may each
+    # bring their own Pluggy application (see ProviderCredential).
+    _api_keys: dict[str, tuple[str, float]] = {}
+
+    def __init__(
+        self, client_id: Optional[str] = None, client_secret: Optional[str] = None
+    ) -> None:
+        """Use the given credentials, or the instance-wide ones from the env."""
+        if client_id and client_secret:
+            self._client_id = client_id
+            self._client_secret = client_secret
+        else:
+            settings = get_settings()
+            self._client_id = settings.pluggy_client_id
+            self._client_secret = settings.pluggy_client_secret.get_secret_value()
 
     @property
     def name(self) -> str:
@@ -463,25 +476,25 @@ class PluggyProvider(BankProvider):
     async def _ensure_api_key(self) -> str:
         """Get a valid API key, refreshing if expired or about to expire (<5min remaining)."""
         now = time.time()
-        if self._api_key and (self._api_key_expires_at - now) > 300:
-            return self._api_key
+        cached = PluggyProvider._api_keys.get(self._client_id)
+        if cached and (cached[1] - now) > 300:
+            return cached[0]
 
-        settings = get_settings()
+        api_key = await self.authenticate(self._client_id, self._client_secret)
+        # Pluggy API keys last 2 hours
+        PluggyProvider._api_keys[self._client_id] = (api_key, now + 7200)
+        return api_key
+
+    @staticmethod
+    async def authenticate(client_id: str, client_secret: str) -> str:
+        """Exchange client credentials for an API key; raises on rejection."""
         async with httpx.AsyncClient(timeout=30.0) as client:
             resp = await client.post(
                 f"{PLUGGY_API_BASE}/auth",
-                json={
-                    "clientId": settings.pluggy_client_id,
-                    "clientSecret": settings.pluggy_client_secret.get_secret_value(),
-                },
+                json={"clientId": client_id, "clientSecret": client_secret},
             )
             resp.raise_for_status()
-            data = resp.json()
-
-        PluggyProvider._api_key = data["apiKey"]
-        # Pluggy API keys last 2 hours
-        PluggyProvider._api_key_expires_at = now + 7200
-        return PluggyProvider._api_key
+            return resp.json()["apiKey"]
 
     async def _headers(self) -> dict:
         api_key = await self._ensure_api_key()

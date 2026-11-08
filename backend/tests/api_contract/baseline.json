@@ -17,6 +17,7 @@
   "DELETE /api/categories/{category_id}": 401,
   "DELETE /api/category-groups/{group_id}": 401,
   "DELETE /api/collections/{collection_id}": 401,
+  "DELETE /api/connections/credentials/{provider}": 401,
   "DELETE /api/connections/transfers/{pair_id}": 401,
   "DELETE /api/connections/{connection_id}": 401,
   "DELETE /api/goals/{goal_id}": 401,
@@ -100,7 +101,8 @@
   "GET /api/category-groups": 401,
   "GET /api/collections": 401,
   "GET /api/connections": 401,
-  "GET /api/connections/providers": 200,
+  "GET /api/connections/credentials/{provider}": 401,
+  "GET /api/connections/providers": 401,
   "GET /api/connections/{provider}/institutions": 401,
   "GET /api/currencies": 200,
   "GET /api/dashboard/balance-history": 401,
@@ -335,6 +337,7 @@
   "POST /api/workspaces/{workspace_id}/archive": 401,
   "POST /api/workspaces/{workspace_id}/members": 401,
   "PUT /api/agents/{agent_id}/tools": 401,
+  "PUT /api/connections/credentials/{provider}": 401,
   "PUT /api/mortgage-payments/{payment_id}": 401,
   "PUT /api/reconciliation/rules/{node}/order": 401
  },
@@ -408,6 +411,7 @@
   "POST /api/transactions/{transaction_id}/create-counterpart": 422,
   "POST /api/workspaces": 422,
   "POST /api/workspaces/{workspace_id}/members": 422,
+  "PUT /api/connections/credentials/{provider}": 422,
   "PUT /api/mortgage-payments/{payment_id}": 422,
   "PUT /api/reconciliation/rules/{node}/order": 422
  },
@@ -429,6 +433,7 @@
   "DELETE /api/categories/{category_id}": 409,
   "DELETE /api/category-groups/{group_id}": 204,
   "DELETE /api/collections/{collection_id}": 204,
+  "DELETE /api/connections/credentials/{provider}": 204,
   "DELETE /api/connections/transfers/{pair_id}": 404,
   "DELETE /api/connections/{connection_id}": 204,
   "DELETE /api/goals/{goal_id}": 204,
@@ -512,6 +517,7 @@
   "GET /api/category-groups": 200,
   "GET /api/collections": 200,
   "GET /api/connections": 200,
+  "GET /api/connections/credentials/{provider}": 200,
   "GET /api/connections/providers": 200,
   "GET /api/connections/{provider}/institutions": 400,
   "GET /api/currencies": 200,
@@ -745,6 +751,7 @@
   "POST /api/workspaces/{workspace_id}/archive": 400,
   "POST /api/workspaces/{workspace_id}/members": 400,
   "PUT /api/agents/{agent_id}/tools": 200,
+  "PUT /api/connections/credentials/{provider}": 422,
   "PUT /api/mortgage-payments/{payment_id}": 404,
   "PUT /api/reconciliation/rules/{node}/order": 400
  },
@@ -932,6 +939,7 @@
   "DELETE /api/categories/{category_id}": 403,
   "DELETE /api/category-groups/{group_id}": 403,
   "DELETE /api/collections/{collection_id}": 403,
+  "DELETE /api/connections/credentials/{provider}": 204,
   "DELETE /api/connections/transfers/{pair_id}": 403,
   "DELETE /api/connections/{connection_id}": 403,
   "DELETE /api/goals/{goal_id}": 403,
@@ -1105,6 +1113,7 @@
   "POST /api/workspaces/{workspace_id}/archive": 403,
   "POST /api/workspaces/{workspace_id}/members": 403,
   "PUT /api/agents/{agent_id}/tools": 403,
+  "PUT /api/connections/credentials/{provider}": 422,
   "PUT /api/mortgage-payments/{payment_id}": 403,
   "PUT /api/reconciliation/rules/{node}/order": 403
  }

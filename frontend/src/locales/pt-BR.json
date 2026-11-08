@@ -3186,5 +3186,22 @@
       "categoryInUse": "Esta categoria tem partes de transações divididas. Altere essas divisões primeiro.",
       "destinationInvalid": "Partes de transações divididas não podem ir para uma categoria ignorada ou oculta."
     }
+  },
+  "providerCredentials": {
+    "title": "Minhas credenciais {{provider}}",
+    "description": "Use a sua própria conta {{provider}} para conectar os seus bancos. Cada pessoa da instalação pode ter a sua; o segredo fica criptografado e nunca é exibido de novo.",
+    "pluggyStep1": "Crie sua conta e conecte seus bancos em",
+    "pluggyStep2": "Crie um Team e uma Application em",
+    "pluggyStep3": "Copie o Client ID e o Client Secret da aplicação e cole abaixo.",
+    "secretKept": "•••••••• (digite de novo para alterar)",
+    "validating": "Validando…",
+    "saved": "Credenciais salvas e validadas",
+    "removed": "Credenciais removidas",
+    "invalid": "A Pluggy recusou essas credenciais. Confira o Client ID e o Client Secret.",
+    "saveError": "Não foi possível salvar as credenciais",
+    "remove": "Remover",
+    "needsOwn": "Clique para informar as suas credenciais e ativar este conector.",
+    "useOwn": "Usar minhas próprias credenciais",
+    "usingOwn": "Usando minhas credenciais (alterar)"
   }
 }

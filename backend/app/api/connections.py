@@ -3,6 +3,7 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.auth import current_active_user
 from app.core.database import get_async_session
 from app.core.workspace_context import (
     WorkspaceContext,
@@ -27,26 +28,107 @@ from app.schemas.bank_connection import (
     ReauthUrlResponse,
     ReconnectTokenResponse,
 )
-from app.services import connection_service
+from app.models.user import User
+from app.schemas.provider_credential import ProviderCredentialRead, ProviderCredentialWrite
+from app.services import connection_service, provider_credential_service
 from app.services.transfer_detection_service import detect_transfer_pairs, unlink_transfer_pair
 
 router = APIRouter(prefix="/api/connections", tags=["connections"])
 
 
 @router.get("/providers")
-async def get_available_providers():
-    """List all known open finance providers with configuration status."""
-    return {"providers": all_known_providers()}
+async def get_available_providers(
+    user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """List all known open finance providers with configuration status.
+
+    A provider counts as configured for this user when the instance has
+    credentials for it or the user saved their own.
+    """
+    providers = []
+    for p in all_known_providers():
+        supports_user = p["name"] in provider_credential_service.USER_CREDENTIAL_PROVIDERS
+        has_user = supports_user and await provider_credential_service.user_has_credential(
+            session, user.id, p["name"]
+        )
+        providers.append(
+            {
+                **p,
+                "configured": p["configured"] or has_user,
+                "supports_user_credentials": supports_user,
+                "has_user_credentials": has_user,
+            }
+        )
+    return {"providers": providers}
+
+
+@router.get("/credentials/{provider}", response_model=ProviderCredentialRead)
+async def get_provider_credentials(
+    provider: str,
+    user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """The current user's own credentials for `provider` (secret never returned)."""
+    credential = await provider_credential_service.get_credential(session, user.id, provider)
+    if credential is None:
+        return ProviderCredentialRead(provider=provider, configured=False)
+    return ProviderCredentialRead(
+        provider=provider,
+        configured=True,
+        client_id=credential.client_id,
+        updated_at=credential.updated_at,
+    )
+
+
+@router.put("/credentials/{provider}", response_model=ProviderCredentialRead)
+async def save_provider_credentials(
+    provider: str,
+    data: ProviderCredentialWrite,
+    user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """Save (after validating with the provider) the user's own credentials."""
+    try:
+        credential = await provider_credential_service.save_credential(
+            session, user.id, provider, data.client_id, data.client_secret
+        )
+    except provider_credential_service.InvalidProviderCredentials as e:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Could not validate credentials with the provider: {str(e)}",
+        )
+    return ProviderCredentialRead(
+        provider=provider,
+        configured=True,
+        client_id=credential.client_id,
+        updated_at=credential.updated_at,
+    )
+
+
+@router.delete("/credentials/{provider}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_provider_credentials(
+    provider: str,
+    user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """Forget the user's own credentials; the instance ones apply again, if any."""
+    await provider_credential_service.delete_credential(session, user.id, provider)
 
 
 @router.post("/connect-token", response_model=ConnectTokenResponse)
 async def create_connect_token(
     data: ConnectTokenRequest,
     ctx: WorkspaceContext = Depends(current_writable_workspace),
+    session: AsyncSession = Depends(get_async_session),
 ):
     """Create a connect token for widget-based bank connection flows."""
     try:
-        token_data = await connection_service.create_connect_token(data.provider, ctx.user_id)
+        token_data = await connection_service.create_connect_token(session, data.provider, ctx.user_id)
         return ConnectTokenResponse(**token_data)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
@@ -229,8 +311,10 @@ async def get_reconnect_token(
         )
 
     try:
+        # The item lives in the owner's provider account, so mint the token
+        # with the owner's credentials even when another member reconnects.
         token_data = await connection_service.create_connect_token(
-            connection.provider, ctx.user_id, item_id=item_id
+            session, connection.provider, connection.user_id, item_id=item_id
         )
         return ReconnectTokenResponse(**token_data)
     except Exception as e:
