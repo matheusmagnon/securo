@@ -250,3 +250,41 @@ async def test_update_api_split_installments(client, auth_headers, session, test
         select(TransactionSplit.share_amount).where(TransactionSplit.transaction_id == p2_id)
     )).scalars().all()
     assert sorted(rows) == [Decimal("50.00"), Decimal("50.00")]
+
+
+@pytest.mark.asyncio
+async def test_owner_linked_as_self_sees_other_members_rows_as_shared(session, test_user, test_workspace):
+    """The group owner linked their own account (is_self + linked): a parcel
+    another member recorded is a shared, read-only row for them."""
+    import bcrypt
+
+    from app.models.user import User
+    from app.services import transaction_service, workspace_service
+
+    other = User(
+        id=uuid.uuid4(), email="ela@example.com",
+        hashed_password=bcrypt.hashpw(b"x", bcrypt.gensalt()).decode(),
+        is_active=True, is_superuser=False, is_verified=True,
+    )
+    session.add(other)
+    await session.flush()
+    await workspace_service.create_personal_workspace_for_user(session, other, commit=True)
+
+    group = await group_service.create_group(session, test_workspace.id, test_user.id, GroupCreate(name="Casa"))
+    me = await group_service.create_member(
+        session, group.id, test_workspace.id,
+        GroupMemberCreate(name="Eu", is_self=True, linked_user_id=test_user.id),
+    )
+    her = await group_service.create_member(
+        session, group.id, test_workspace.id, GroupMemberCreate(name="Ela", linked_user_id=other.id)
+    )
+    card = await _account(session, other.id)
+    parcel = await _parcel(session, other.id, card.id, 3)
+    await installment_split_service.set_series_split(session, parcel, _equal(me, her), other.id)
+    await session.commit()
+    await session.refresh(parcel, ["splits"])
+
+    await transaction_service._tag_shared_view(session, [parcel], test_user.id)
+    assert parcel.is_shared is True
+    assert parcel.viewer_share == Decimal("50.00")
+    assert parcel.group_id == group.id

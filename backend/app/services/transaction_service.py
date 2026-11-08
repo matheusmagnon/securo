@@ -732,10 +732,14 @@ async def _tag_shared_view(
     """
     from app.models.group import GroupMember
 
+    # Every member linked to the viewer, the group owner's own member
+    # included: an owner who linked their account (is_self and linked) must
+    # still see the other members' transactions as shared, read-only rows.
+    # The viewer's own transactions never reach the lookup (handled first
+    # in the loop below), so including is_self can't mistag them.
     member_rows = await session.execute(
         select(GroupMember.id, GroupMember.group_id).where(
             GroupMember.linked_user_id == user_id,
-            GroupMember.is_self.is_(False),
         )
     )
     member_to_group = {row.id: row.group_id for row in member_rows}
