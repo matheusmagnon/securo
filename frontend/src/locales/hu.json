@@ -1695,7 +1695,10 @@
       "rules": "Szabályok",
       "queue": "Rád vár",
       "history": "Előzmények"
-    }
+    },
+    "splitGroup": "Split with group",
+    "selectGroup": "Select a group",
+    "splitGroupHint": "Splits equally among the group's members. Applies to new transactions; existing ones are not split."
   },
   "categories": {
     "title": "Kategóriák",

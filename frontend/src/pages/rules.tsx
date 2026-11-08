@@ -151,6 +151,7 @@ function actionSummary(actions: RuleAction[], categories: Category[], payeesList
     }
     if (a.op === 'append_notes') return `→ ${t('rules.fieldNotes')}: ${a.value}`
     if (a.op === 'ignore') return `→ ${t('rules.ignoreAction')}`
+    if (a.op === 'split_group') return `→ ${t('rules.splitGroup')}`
     return a.op
   }).join('  ') || t('rules.noActions')
 }
@@ -161,6 +162,7 @@ const ACTION_FILTERS = [
   { value: 'set_payee', label: 'rules.setPayee' },
   { value: 'append_notes', label: 'rules.appendNotes' },
   { value: 'ignore', label: 'rules.ignoreAction' },
+  { value: 'split_group', label: 'rules.splitGroup' },
 ] as const
 
 const FILTER_CONTROL_CLASS = 'h-7 rounded-md border border-border bg-background px-2 text-xs text-foreground focus:outline-none focus-visible:ring-ring/30 focus-visible:ring-[2px]'

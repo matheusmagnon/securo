@@ -1695,7 +1695,10 @@
       "rules": "Κανόνες",
       "queue": "Σε αναμονή",
       "history": "Ιστορικό"
-    }
+    },
+    "splitGroup": "Split with group",
+    "selectGroup": "Select a group",
+    "splitGroupHint": "Splits equally among the group's members. Applies to new transactions; existing ones are not split."
   },
   "categories": {
     "title": "Κατηγορίες",

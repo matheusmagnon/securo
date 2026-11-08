@@ -1695,7 +1695,10 @@
       "rules": "Rules",
       "queue": "Waiting for you",
       "history": "History"
-    }
+    },
+    "splitGroup": "Split with group",
+    "selectGroup": "Select a group",
+    "splitGroupHint": "Splits equally among the group's members. Applies to new transactions; existing ones are not split."
   },
   "categories": {
     "title": "Categories",

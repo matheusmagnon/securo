@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useInfiniteQuery } from '@tanstack/react-query'
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { getAccountName, sortAccountsByDisplayName } from '@/lib/account-utils'
 import { isInvalidDescriptionAction, parseRulePriority, previewableActions } from '@/lib/rule-form-utils'
-import { rules as rulesApi } from '@/lib/api'
+import { groups as groupsApi, rules as rulesApi } from '@/lib/api'
 import { formatSignedAmount } from '@/lib/format'
 import { useDisplayLocale, useDateLocale } from '@/hooks/use-display-locale'
 import { usePrivacyMode } from '@/hooks/use-privacy-mode'
@@ -707,8 +707,14 @@ export function RuleDialog({
                         <option value="set_payee">{t('rules.setPayee')}</option>
                         <option value="append_notes">{t('rules.appendNotes')}</option>
                         <option value="ignore">{t('rules.ignoreAction')}</option>
+                        <option value="split_group">{t('rules.splitGroup')}</option>
                       </select>
-                      {action.op === 'ignore' ? (
+                      {action.op === 'split_group' ? (
+                        <SplitGroupSelect
+                          value={action.value}
+                          onChange={(val) => updateAction(i, 'value', val)}
+                        />
+                      ) : action.op === 'ignore' ? (
                         <span className="min-w-0 text-sm italic text-muted-foreground sm:w-0 sm:flex-1">
                           {t('rules.ignoreActionHint')}
                         </span>
@@ -837,5 +843,32 @@ export function RuleDialog({
         </form>
       </DialogContent>
     </Dialog>
+  )
+}
+
+
+/** Group picker for the "split among a group" action: the transaction is
+ * split equally among the group's members when the rule matches. */
+function SplitGroupSelect({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  const { t } = useTranslation()
+  const { data: groupList = [] } = useQuery({
+    queryKey: ['groups'],
+    queryFn: () => groupsApi.list(false),
+  })
+  return (
+    <div className="w-full min-w-0 space-y-1 sm:w-0 sm:flex-1">
+      <select
+        className={`${SELECT_CLASS} w-full`}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        required
+      >
+        <option value="">{t('rules.selectGroup')}</option>
+        {groupList.map((g) => (
+          <option key={g.id} value={g.id}>{g.name}</option>
+        ))}
+      </select>
+      <p className="text-xs text-muted-foreground">{t('rules.splitGroupHint')}</p>
+    </div>
   )
 }

@@ -58,6 +58,7 @@ _ALLOWED_CONDITION_OPS = {
 }
 _ALLOWED_ACTION_OPS = {
     "set_category", "set_payee", "set_description", "append_notes", "ignore",
+    "split_group",
 }
 
 
@@ -138,6 +139,36 @@ async def _validate_rule_definition(
                 raise ValueError("Description cannot be blank")
             if len(value.strip()) > 500:
                 raise ValueError("Description cannot exceed 500 characters")
+        elif op == "split_group":
+            if not await _group_usable_from_workspace(session, workspace_id, value):
+                raise ValueError("Group not found")
+
+
+async def _group_usable_from_workspace(
+    session: AsyncSession, workspace_id: uuid.UUID, value
+) -> bool:
+    """A group a rule of this workspace may split into: one that lives here,
+    or one a member of this workspace is linked to from outside (the
+    cross-workspace case, by the same rule the group read paths use)."""
+    from app.models.group import Group, GroupMember
+    from app.models.workspace import WorkspaceMember
+
+    try:
+        group_id = uuid.UUID(str(value))
+    except (TypeError, ValueError):
+        return False
+    linked_here = (
+        select(GroupMember.group_id)
+        .join(WorkspaceMember, WorkspaceMember.user_id == GroupMember.linked_user_id)
+        .where(WorkspaceMember.workspace_id == workspace_id, GroupMember.is_self.is_(False))
+    )
+    found = await session.execute(
+        select(Group.id).where(
+            Group.id == group_id,
+            (Group.workspace_id == workspace_id) | Group.id.in_(linked_here),
+        )
+    )
+    return found.scalar_one_or_none() is not None
 
 
 # ─── Universal rules (work for any language/country) ───
@@ -960,6 +991,8 @@ async def apply_rules_to_transaction(
         else None
     )
 
+    split_rule: Optional[Rule] = None
+    split_group_id = None
     for rule in rules:
         conditions = rule.conditions or []
         actions = rule.actions or []
@@ -970,6 +1003,70 @@ async def apply_rules_to_transaction(
                 category_set,
                 assignable_category_ids=assignable_categories,
             )
+            if split_rule is None:
+                split_group_id = next(
+                    (a.get("value") for a in actions if a.get("op") == "split_group"), None
+                )
+                if split_group_id is not None:
+                    split_rule = rule
+
+    if split_rule is not None:
+        await _split_by_rule(session, transaction, split_rule, split_group_id, user_id)
+
+
+async def _split_by_rule(
+    session: AsyncSession,
+    transaction: Transaction,
+    rule: Rule,
+    group_value,
+    fallback_user_id: uuid.UUID,
+) -> None:
+    """Split `transaction` equally among the members of the rule's group.
+
+    The first matching rule with a split action wins. A transaction already
+    split (among people or across categories), a transfer, or one not yet
+    written is left alone, and so is a group the rule can no longer reach:
+    a stale rule must not fail the sync or import that ran it.
+    """
+    import logging
+
+    from app.models.group import GroupMember
+    from app.models.transaction_split import TransactionSplit
+    from app.schemas.transaction_split import TransactionSplitInput, TransactionSplitsInput
+    from app.services import split_service
+
+    if transaction.id is None or transaction.has_category_lines or transaction.transfer_pair_id:
+        return
+    existing = await session.execute(
+        select(TransactionSplit.id).where(TransactionSplit.transaction_id == transaction.id).limit(1)
+    )
+    if existing.first() is not None:
+        return
+    try:
+        group_id = uuid.UUID(str(group_value))
+    except (TypeError, ValueError):
+        return
+    member_ids = (
+        await session.execute(
+            select(GroupMember.id).where(GroupMember.group_id == group_id).order_by(GroupMember.created_at)
+        )
+    ).scalars().all()
+    if len(member_ids) < 2:
+        return
+    payload = TransactionSplitsInput(
+        share_type="equal",
+        splits=[TransactionSplitInput(group_member_id=m) for m in member_ids],
+    )
+    try:
+        async with session.begin_nested():
+            await split_service.replace_splits(
+                session, transaction, payload, rule.user_id or fallback_user_id
+            )
+    except ValueError:
+        logging.getLogger(__name__).warning(
+            "Rule %s could not split transaction %s into group %s",
+            rule.id, transaction.id, group_id, exc_info=True,
+        )
 
 
 def _rule_effect_state(tx: Transaction) -> tuple:

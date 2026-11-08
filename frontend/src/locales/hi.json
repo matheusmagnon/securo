@@ -1695,7 +1695,10 @@
       "rules": "नियम",
       "queue": "आपकी प्रतीक्षा में",
       "history": "इतिहास"
-    }
+    },
+    "splitGroup": "Split with group",
+    "selectGroup": "Select a group",
+    "splitGroupHint": "Splits equally among the group's members. Applies to new transactions; existing ones are not split."
   },
   "categories": {
     "title": "श्रेणियाँ",

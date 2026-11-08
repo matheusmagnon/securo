@@ -1699,7 +1699,10 @@
       "rules": "Regras",
       "queue": "À sua espera",
       "history": "Histórico"
-    }
+    },
+    "splitGroup": "Dividir no grupo",
+    "selectGroup": "Selecione um grupo",
+    "splitGroupHint": "Divide em partes iguais entre os membros do grupo. Vale para transações novas; as já existentes não são divididas."
   },
   "categories": {
     "title": "Categorias",

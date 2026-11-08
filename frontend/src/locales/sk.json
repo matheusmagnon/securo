@@ -1795,7 +1795,10 @@
       "rules": "Pravidlá",
       "queue": "Čaká na vás",
       "history": "História"
-    }
+    },
+    "splitGroup": "Split with group",
+    "selectGroup": "Select a group",
+    "splitGroupHint": "Splits equally among the group's members. Applies to new transactions; existing ones are not split."
   },
   "categories": {
     "title": "Kategórie",
