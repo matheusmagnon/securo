@@ -1062,7 +1062,7 @@
     "transferSameAccount": "La source et la destination doivent être différentes",
     "transferDescription": "Description",
     "transferNotes": "Notes",
-    "transferInfo": "Il s'agit d'un virement — les modifications de la description, de la date et des notes s'appliqueront aux deux côtés",
+    "transferInfo": "Il s'agit d'un virement : les modifications de la description et des notes s'appliquent aux deux côtés. Les changements de montant et de date s'appliquent aussi à la contrepartie saisie manuellement (non synchronisée), jamais à une contrepartie synchronisée.",
     "transferLinkedTo": "Liée à :",
     "transferOpenAccount": "Ouvrir le compte {{account}}",
     "transferTooltip": "Les virements sont exclus des totaux des rapports et du tableau de bord",
@@ -1177,7 +1177,8 @@
     "invoiceBadgeTooltip": "Cette transaction solde une facture. Ouvrir.",
     "suggestionBadge": "Question",
     "suggestionBadgeTooltip": "Un paiement peut solder cette facture. Ouvrez la file pour répondre.",
-    "clearGroupFilter": "Effacer le filtre de groupe"
+    "clearGroupFilter": "Effacer le filtre de groupe",
+    "syncedAmountDateError": "Le montant ou la date d'une transaction synchronisée ne peuvent pas être modifiés"
   },
   "accounts": {
     "title": "Comptes",
@@ -1462,7 +1463,20 @@
     "suggestCreate": "Créer les budgets",
     "suggestCreated": "{{count}} budgets créés",
     "suggestEmpty": "Aucun historique de dépenses sur la période sélectionnée pour suggérer.",
-    "suggestError": "Impossible de charger les suggestions. Réessayez dans un instant."
+    "suggestError": "Impossible de charger les suggestions. Réessayez dans un instant.",
+    "settingsTitle": "Budget settings",
+    "monthBudgets": "Budgets de {{month}}",
+    "otherCategories": "Autres catégories",
+    "noCategories": "Aucune catégorie",
+    "total": "Budget {{amount}}",
+    "saved": "Budgets enregistrés",
+    "budgetFor": "Budget pour {{category}}",
+    "invalidAmount": "Saisissez un montant valide égal ou supérieur à zéro.",
+    "repeatEveryMonthFor": "Répéter le budget {{category}} chaque mois",
+    "previousMonth": "Mois précédent",
+    "nextMonth": "Mois suivant",
+    "hiddenCategory": "Masquée",
+    "average": "d'habitude {{amount}}"
   },
   "goals": {
     "title": "Objectifs",
@@ -3348,6 +3362,153 @@
     "mini": {
       "youOwe": "You owe {{name}} {{amount}}",
       "owesYou": "{{name}} owes you {{amount}}"
+    }
+  },
+  "plugins": {
+    "title": "Plugins",
+    "hint": "Des catégories et des règles créées par la communauté. Vous vérifiez chaque modification avant qu'elle soit appliquée, et rien ne quitte votre serveur.",
+    "browse": "Parcourir le catalogue",
+    "noneInstalled": "Aucun plugin installé dans cet espace de travail.",
+    "remove": "Retirer le plugin",
+    "removeAria": "Retirer {{name}}",
+    "catalogFailed": "Impossible de charger le catalogue.",
+    "catalogEmpty": "Le catalogue n'a pas encore de plugins.",
+    "viewSource": "Voir le code source",
+    "revoked": "Révoqué",
+    "unavailable": "Indisponible",
+    "needsVersion": "Nécessite Securo {{version}}",
+    "updateAvailable": "Mise à jour disponible",
+    "installed": "Installé",
+    "install": "Installer",
+    "update": "Mettre à jour",
+    "andMore": "et {{count}} de plus",
+    "planTitle": {
+      "install": "Installer {{name}} ?",
+      "update": "Mettre à jour {{name}} ?",
+      "remove": "Retirer {{name}} ?"
+    },
+    "planIntro": "Voici ce qui change dans cet espace de travail :",
+    "planFailed": "Impossible de charger ce que cela changerait.",
+    "planChanged": "Quelque chose a changé depuis cet aperçu. Vérifiez-le à nouveau.",
+    "privacy": "Ce plugin ajoute uniquement des données à cet espace de travail. Rien n'est envoyé ailleurs.",
+    "history": "Les transactions gardent les catégories qu'elles ont déjà.",
+    "confirm": {
+      "install": "Installer",
+      "update": "Mettre à jour",
+      "remove": "Retirer"
+    },
+    "done": {
+      "install": "{{name}} installé",
+      "update": "{{name}} mis à jour",
+      "remove": "{{name}} retiré"
+    },
+    "kind": {
+      "category_groups_one": "{{count}} groupe",
+      "category_groups_other": "{{count}} groupes",
+      "categories_one": "{{count}} catégorie",
+      "categories_other": "{{count}} catégories",
+      "rules_one": "{{count}} règle",
+      "rules_other": "{{count}} règles"
+    },
+    "plan": {
+      "create": "Ajoute {{items}}",
+      "update": "Met à jour {{items}}",
+      "delete": "Supprime {{items}}",
+      "keep": "Laisse tels quels {{items}} que vous avez modifiés :",
+      "release": "Vous confie {{items}}, modifiés ou encore utilisés :",
+      "existing": "Ignore {{items}} que vous avez déjà :",
+      "unresolved": "Ignore {{items}} dont la catégorie n'existe pas :",
+      "defaults_one": "Crée aussi {{count}} catégorie par défaut utilisée par ses règles",
+      "defaults_other": "Crée aussi {{count}} catégories par défaut utilisées par ses règles"
+    },
+    "page": {
+      "section": "Catalogue",
+      "notice": "Les plugins ne sont pas vérifiés par Securo. Avant d'appliquer quoi que ce soit, vous voyez exactement ce qui change, et rien ne quitte votre serveur.",
+      "search": "Rechercher des plugins",
+      "type": {
+        "data": "Données",
+        "interface": "Interface",
+        "code": "Code"
+      },
+      "status": {
+        "installed": "Installés",
+        "updates": "Mise à jour disponible"
+      },
+      "clear": "Effacer les filtres",
+      "trendingHint": "Les plus fortes croissances, rapportées à leur taille",
+      "newestHint": "Arrivés ces 30 derniers jours",
+      "sortBy": "Trier par",
+      "sort": {
+        "popular": "Populaires",
+        "trending": "Tendances",
+        "updated": "Mis à jour récemment",
+        "newest": "Plus récents",
+        "name": "Nom"
+      },
+      "noResults": "Aucun plugin ne correspond à ces filtres.",
+      "byOwner": "par {{owner}}",
+      "updated": "Mis à jour {{when}}",
+      "count_one": "{{count}} plugin",
+      "count_other": "{{count}} plugins",
+      "stars_one": "{{count}} étoile",
+      "stars_other": "{{count}} étoiles",
+      "authors_one": "{{count}} auteur",
+      "authors_other": "{{count}} auteurs",
+      "clearSearch": "Effacer la recherche",
+      "facet": {
+        "type": "Type",
+        "content": "Contenu",
+        "language": "Langue",
+        "status": "Statut"
+      },
+      "view": {
+        "all": "Tous",
+        "trending": "Tendances",
+        "new": "Nouveaux"
+      },
+      "any": "Tous",
+      "trendingEmpty": "Aucun plugin n'a gagné d'étoiles cette semaine.",
+      "newEmpty": "Aucun plugin n'a rejoint le catalogue ces 30 derniers jours."
+    },
+    "kindName": {
+      "category_groups": "Groupes de catégories",
+      "categories": "Catégories",
+      "rules": "Règles",
+      "csv_presets": "Modèles CSV",
+      "fiscal_jurisdictions": "Juridictions fiscales",
+      "invoice_labels": "Libellés de facture",
+      "widgets": "Widgets",
+      "reports": "Rapports",
+      "dashboard_layouts": "Dispositions du tableau de bord",
+      "connectors": "Connecteurs bancaires",
+      "parsers": "Lecteurs de fichiers",
+      "price_providers": "Fournisseurs de prix",
+      "agent_tools": "Outils de l'agent"
+    },
+    "detail": {
+      "overview": "Aperçu",
+      "inside": "Contenu",
+      "insideHint": "Tout ce que ce plugin ajoute à un espace. À l'installation, vous voyez ce que vous avez déjà.",
+      "noReadme": "L'auteur n'a pas encore écrit de README pour ce plugin.",
+      "loadFailed": "Impossible de charger les détails du plugin.",
+      "contentsUnavailable": "Cette version de Securo ne peut pas lister le contenu de ce plugin.",
+      "version": "Version",
+      "license": "Licence",
+      "requires": "Nécessite",
+      "updated": "Mis à jour",
+      "languages": "Langues",
+      "builtIn": "par défaut",
+      "when": "Quand",
+      "previewNote": "L'installation montre chaque changement avant toute application, et rien ne quitte votre serveur.",
+      "notFound": "Ce plugin n'est pas dans le catalogue.",
+      "type": "Type",
+      "added": "Ajouté"
+    },
+    "installedFailed": "Impossible de charger les plugins installés.",
+    "planRecordOnly": {
+      "install": "Cet espace a déjà tout ce qu'il apporte. L'installer l'enregistre, pour recevoir ses mises à jour.",
+      "update": "Aucun élément de cet espace ne change ; la version installée passe à {{version}}.",
+      "remove": "Aucun de ses éléments n'est resté ici ; le retirer l'enlève seulement de la liste."
     }
   }
 }

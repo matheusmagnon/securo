@@ -1060,7 +1060,7 @@
     "transferSameAccount": "Source and destination must be different",
     "transferDescription": "Description",
     "transferNotes": "Notes",
-    "transferInfo": "This is a transfer — changes to description, date, and notes will apply to both sides",
+    "transferInfo": "This is a transfer: changes to description and notes apply to both sides. Amount and date changes also apply to a manual (non-synchronized) counterpart, never to a synchronized one.",
     "transferLinkedTo": "Linked to:",
     "transferOpenAccount": "Open {{account}}",
     "transferTooltip": "Transfers are excluded from report and dashboard totals",
@@ -1175,7 +1175,8 @@
     "invoiceBadgeTooltip": "This transaction settles an invoice. Open it.",
     "suggestionBadge": "Question",
     "suggestionBadgeTooltip": "A payment may settle this. Open the queue to answer.",
-    "clearGroupFilter": "Clear group filter"
+    "clearGroupFilter": "Clear group filter",
+    "syncedAmountDateError": "The amount or date of a synchronized transaction cannot be changed"
   },
   "accounts": {
     "title": "Accounts",
@@ -1458,7 +1459,20 @@
     "suggestCreate": "Create budgets",
     "suggestCreated": "Created {{count}} budgets",
     "suggestEmpty": "No spending history in the selected period to suggest from.",
-    "suggestError": "Could not load suggestions. Try again in a moment."
+    "suggestError": "Could not load suggestions. Try again in a moment.",
+    "settingsTitle": "Budget settings",
+    "monthBudgets": "Budgets for {{month}}",
+    "otherCategories": "Other categories",
+    "noCategories": "No categories yet",
+    "total": "Budget {{amount}}",
+    "saved": "Budgets saved",
+    "budgetFor": "Budget for {{category}}",
+    "invalidAmount": "Enter a valid amount of zero or more.",
+    "repeatEveryMonthFor": "Repeat the {{category}} budget every month",
+    "previousMonth": "Previous month",
+    "nextMonth": "Next month",
+    "hiddenCategory": "Hidden",
+    "average": "usually {{amount}}"
   },
   "goals": {
     "title": "Goals",
@@ -3344,6 +3358,153 @@
     "mini": {
       "youOwe": "You owe {{name}} {{amount}}",
       "owesYou": "{{name}} owes you {{amount}}"
+    }
+  },
+  "plugins": {
+    "title": "Plugins",
+    "hint": "Categories and rules made by the community. You review every change before it's applied, and nothing leaves your server.",
+    "browse": "Browse catalog",
+    "noneInstalled": "No plugins installed in this workspace.",
+    "remove": "Remove plugin",
+    "removeAria": "Remove {{name}}",
+    "catalogFailed": "Couldn't load the catalog.",
+    "catalogEmpty": "The catalog has no plugins yet.",
+    "viewSource": "View source",
+    "revoked": "Revoked",
+    "unavailable": "Unavailable",
+    "needsVersion": "Needs Securo {{version}}",
+    "updateAvailable": "Update available",
+    "installed": "Installed",
+    "install": "Install",
+    "update": "Update",
+    "andMore": "and {{count}} more",
+    "planTitle": {
+      "install": "Install {{name}}?",
+      "update": "Update {{name}}?",
+      "remove": "Remove {{name}}?"
+    },
+    "planIntro": "This is what changes in this workspace:",
+    "planFailed": "Couldn't load what this would change.",
+    "planChanged": "Something changed since this preview. Review it again.",
+    "privacy": "This plugin only adds data to this workspace. Nothing is sent anywhere.",
+    "history": "Transactions keep the categories they already have.",
+    "confirm": {
+      "install": "Install",
+      "update": "Update",
+      "remove": "Remove"
+    },
+    "done": {
+      "install": "{{name}} installed",
+      "update": "{{name}} updated",
+      "remove": "{{name}} removed"
+    },
+    "kind": {
+      "category_groups_one": "{{count}} group",
+      "category_groups_other": "{{count}} groups",
+      "categories_one": "{{count}} category",
+      "categories_other": "{{count}} categories",
+      "rules_one": "{{count}} rule",
+      "rules_other": "{{count}} rules"
+    },
+    "plan": {
+      "create": "Adds {{items}}",
+      "update": "Updates {{items}}",
+      "delete": "Deletes {{items}}",
+      "keep": "Leaves {{items}} you edited as they are:",
+      "release": "Hands {{items}} over to you, edited or still in use:",
+      "existing": "Skips {{items}} you already have:",
+      "unresolved": "Skips {{items}} whose category is missing:",
+      "defaults_one": "Also creates {{count}} default category its rules need",
+      "defaults_other": "Also creates {{count}} default categories its rules need"
+    },
+    "page": {
+      "section": "Catalog",
+      "notice": "Plugins aren't reviewed by Securo. Before anything is applied you see exactly what changes, and nothing leaves your server.",
+      "search": "Search plugins",
+      "type": {
+        "data": "Data",
+        "interface": "Interface",
+        "code": "Code"
+      },
+      "status": {
+        "installed": "Installed",
+        "updates": "Updates available"
+      },
+      "clear": "Clear filters",
+      "trendingHint": "Fastest-growing, relative to their size",
+      "newestHint": "Joined in the last 30 days",
+      "sortBy": "Sort by",
+      "sort": {
+        "popular": "Popular",
+        "trending": "Trending",
+        "updated": "Recently updated",
+        "newest": "Newest",
+        "name": "Name"
+      },
+      "noResults": "No plugins match these filters.",
+      "byOwner": "by {{owner}}",
+      "updated": "Updated {{when}}",
+      "count_one": "{{count}} plugin",
+      "count_other": "{{count}} plugins",
+      "stars_one": "{{count}} star",
+      "stars_other": "{{count}} stars",
+      "authors_one": "{{count}} author",
+      "authors_other": "{{count}} authors",
+      "clearSearch": "Clear search",
+      "facet": {
+        "type": "Type",
+        "content": "Content",
+        "language": "Language",
+        "status": "Status"
+      },
+      "view": {
+        "all": "All",
+        "trending": "Trending",
+        "new": "New"
+      },
+      "any": "Any",
+      "trendingEmpty": "No plugin gained stars this week.",
+      "newEmpty": "No plugin joined in the last 30 days."
+    },
+    "kindName": {
+      "category_groups": "Category groups",
+      "categories": "Categories",
+      "rules": "Rules",
+      "csv_presets": "CSV presets",
+      "fiscal_jurisdictions": "Fiscal jurisdictions",
+      "invoice_labels": "Invoice labels",
+      "widgets": "Widgets",
+      "reports": "Reports",
+      "dashboard_layouts": "Dashboard layouts",
+      "connectors": "Bank connectors",
+      "parsers": "File parsers",
+      "price_providers": "Price providers",
+      "agent_tools": "Agent tools"
+    },
+    "detail": {
+      "overview": "Overview",
+      "inside": "What's inside",
+      "insideHint": "Everything this plugin adds to a workspace. Installing shows which of these you already have.",
+      "noReadme": "The author hasn't written a README for this plugin.",
+      "loadFailed": "Couldn't load this plugin's details.",
+      "contentsUnavailable": "This version of Securo can't list what this plugin contains.",
+      "version": "Version",
+      "license": "License",
+      "requires": "Requires",
+      "updated": "Updated",
+      "languages": "Languages",
+      "builtIn": "built-in",
+      "when": "When",
+      "previewNote": "Installing shows every change before anything is applied, and nothing leaves your server.",
+      "notFound": "This plugin isn't in the catalog.",
+      "type": "Type",
+      "added": "Added"
+    },
+    "installedFailed": "Couldn't load the installed plugins.",
+    "planRecordOnly": {
+      "install": "This workspace already has everything it brings. Installing records it, so you get its updates.",
+      "update": "Nothing changes in this workspace's items; the installed version moves to {{version}}.",
+      "remove": "None of its items are left here; removing only takes it off the list."
     }
   }
 }
