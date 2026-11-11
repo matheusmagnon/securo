@@ -48,6 +48,16 @@ class AgentSettings(BaseSettings):
     # client you deliberately want to allow, e.g. "https://app.example.com".
     mcp_allowed_origins: str = ""
 
+    # Hosts an OAuth client (ChatGPT, Claude…) may register as its redirect
+    # target, comma-separated. A redirect to any other host is refused at
+    # registration, so a consent link crafted by a third party cannot send
+    # the authorization code anywhere but these apps.
+    mcp_oauth_redirect_hosts: str = "chatgpt.com,chat.openai.com,claude.ai,claude.com,localhost,127.0.0.1"
+    # Lifetimes of the OAuth access token (a regular MCP JWT) and of the
+    # rotating refresh token behind it.
+    mcp_oauth_access_ttl_seconds: int = 3600
+    mcp_oauth_refresh_ttl_days: int = 90
+
     # Embedding dimension for the knowledge_chunks vector column. Locked at
     # migration time. 1536 covers OpenAI text-embedding-3-small (default) and
     # nomic-embed-text via Matryoshka padding/truncation.

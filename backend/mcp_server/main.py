@@ -24,6 +24,7 @@ from fastapi.responses import JSONResponse
 from app.agents.config import get_agent_settings
 from app.core.database import async_session_maker
 from mcp_server import protocol as p
+from mcp_server.oauth import router as oauth_router, www_authenticate
 from mcp_server import tools as _tools_pkg  # noqa: F401  triggers tool registration
 from mcp_server.auth import CallContext, ToolAccessDenied, verify_request
 from mcp_server.registry import REGISTRY, call_tool, list_tools
@@ -31,6 +32,7 @@ from mcp_server.registry import REGISTRY, call_tool, list_tools
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Securo MCP Server", openapi_url=None, docs_url=None)
+app.include_router(oauth_router)
 
 
 SERVER_INFO = {
@@ -81,9 +83,12 @@ async def mcp(request: Request) -> Response:
     except Exception as exc:  # HTTPException from verify_request
         status_code = getattr(exc, "status_code", 401)
         detail = getattr(exc, "detail", str(exc))
+        # The challenge tells OAuth clients (ChatGPT, Claude) where to log in.
+        headers = {"WWW-Authenticate": www_authenticate()} if status_code == 401 else None
         return JSONResponse(
             status_code=status_code,
             content={"jsonrpc": "2.0", "id": None, "error": {"code": -32001, "message": str(detail)}},
+            headers=headers,
         )
 
     try:
