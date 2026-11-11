@@ -1,0 +1,49 @@
+name: Fork images (arm64)
+
+# Builds this fork's images for the self-hosted server (an ARM VM), on each
+# push to the deployed branch or by hand. The upstream release workflow only
+# runs on published releases and also bumps the Helm chart; this one only
+# builds and pushes.
+
+on:
+  push:
+    branches: [feat/pluggy-credenciais-por-usuario]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: fork-images
+  cancel-in-progress: true
+
+jobs:
+  build:
+    if: github.repository_owner != 'securo-finance'
+    runs-on: ubuntu-24.04-arm
+    strategy:
+      matrix:
+        image: [backend, frontend]
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: docker/setup-buildx-action@v4
+
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v7
+        with:
+          context: ./${{ matrix.image }}
+          file: ./${{ matrix.image }}/Dockerfile
+          platforms: linux/arm64
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/securo-${{ matrix.image }}:fork
+            ghcr.io/${{ github.repository_owner }}/securo-${{ matrix.image }}:${{ github.sha }}
+          cache-from: type=gha,scope=${{ matrix.image }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image }}
