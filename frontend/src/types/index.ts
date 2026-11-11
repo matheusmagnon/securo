@@ -492,6 +492,20 @@ export interface GroupSettlement {
   created_at: string
 }
 
+// A transfer between two members that looks like a settlement of the group.
+export interface SettlementSuggestion {
+  transaction_id: string
+  receiver_transaction_id: string | null
+  from_member_id: string
+  to_member_id: string
+  amount: number | string
+  currency: string
+  date: string
+  // What the payer owes the receiver now; whether the transfer pays it all.
+  owed: number | string
+  matches_balance: boolean
+}
+
 export interface GroupBalanceLine {
   member_id: string
   currency: string
@@ -500,6 +514,64 @@ export interface GroupBalanceLine {
   amount: number
   // FX-converted to the group's default currency for cross-currency rollups.
   amount_in_default_currency: number
+}
+
+// One month of a group (the household view, page "Casa").
+export interface GroupOverviewItem {
+  transaction_id: string
+  date: string
+  description: string
+  category_name: string | null
+  category_color: string | null
+  category_icon: string | null
+  type: 'debit' | 'credit' | string
+  amount: number | string
+  payer_member_id: string | null
+  /** planned = a bill not paid yet; pending = on an open card bill. */
+  status: 'planned' | 'pending' | 'upcoming' | 'paid' | string
+  recurring: boolean
+  my_share: number | string | null
+}
+
+export interface GroupOverviewBill {
+  recurring_id: string
+  description: string
+  due_date: string
+  amount: number | string
+  payer_member_id: string | null
+  paid: boolean
+  paid_date: string | null
+  number: number
+  total: number | null
+}
+
+export interface GroupOverviewContract {
+  recurring_id: string
+  description: string
+  amount: number | string
+  frequency: string
+  payer_member_id: string | null
+  done: number
+  total: number
+  remaining_amount: number | string
+  end_date: string
+  next_date: string
+}
+
+export interface GroupOverview {
+  group_id: string
+  month: string
+  default_currency: string
+  self_member_id: string | null
+  members: { id: string; name: string }[]
+  balance_lines: GroupBalanceLine[]
+  upcoming_lines: GroupBalanceLine[]
+  total: number | string
+  paid_by: { member_id: string; amount: number | string }[]
+  share_of: { member_id: string; amount: number | string }[]
+  items: GroupOverviewItem[]
+  bills: GroupOverviewBill[]
+  contracts: GroupOverviewContract[]
 }
 
 export interface GroupBalances {
@@ -753,7 +825,13 @@ export interface RecurringTransaction {
   end_date: string | null
   is_active: boolean
   auto_generate: boolean
+  generate_at_month_start?: boolean
+  match_whole_month?: boolean
+  installment_offset?: number
+  split_group_id?: string | null
   next_occurrence: string
+  occurrences_done?: number
+  occurrences_total?: number | null
   amount_primary: number | null
   fx_rate_used: number | null
   /** Split across categories: every occurrence starts with these parts. */

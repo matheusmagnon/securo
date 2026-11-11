@@ -30,6 +30,9 @@ class GroupSettlementCreate(GroupSettlementBase):
     # `transaction_id` directly.
     account_id: Optional[uuid.UUID] = None
     description: Optional[str] = None
+    # The receiver's own record of the money arriving (a synced credit),
+    # linked instead of writing a mirror credit on their account.
+    receiver_transaction_id: Optional[uuid.UUID] = None
 
 
 class GroupSettlementUpdate(BaseModel):
@@ -48,3 +51,19 @@ class GroupSettlementRead(GroupSettlementBase):
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class SettlementSuggestionRead(BaseModel):
+    """A transfer between two members that looks like a settlement."""
+
+    transaction_id: uuid.UUID
+    receiver_transaction_id: Optional[uuid.UUID] = None
+    from_member_id: uuid.UUID
+    to_member_id: uuid.UUID
+    amount: Decimal
+    currency: str
+    date: _Date
+    # What the payer owes the receiver now, and whether the transfer pays
+    # it off (rather than part of it).
+    owed: Decimal
+    matches_balance: bool

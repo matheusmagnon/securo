@@ -133,7 +133,8 @@
     "aiAgents": "AIエージェント",
     "documentation": "ドキュメント",
     "collapseSidebar": "サイドバーを折りたたむ",
-    "expandSidebar": "サイドバーを展開する"
+    "expandSidebar": "サイドバーを展開する",
+    "casa": "Home"
   },
   "invoices": {
     "title": "請求書",
@@ -1557,8 +1558,18 @@
     "generatePending": "保留中を生成",
     "autoGenerate": "取引を自動生成",
     "autoGenerateHelp": "この支払いの期日が来るたびに取引を作成します。オフにすると、実際の請求(銀行同期など)を待ち、それまでは予定として表示するだけになります。",
+    "splitGroup": "Split with group",
+    "splitGroupNone": "Don't split",
+    "splitGroupHelp": "Every occurrence starts split equally among the group's members, and the real charge that replaces it keeps the split.",
+    "monthStart": "Create at the start of the month",
+    "monthStartHelp": "The occurrence is created on the 1st of the month it is due, so it shows as upcoming before it is paid.",
     "fxEstimate": "最新の為替レートによる推定({{rate}})。最終金額は変わる場合があります。",
-    "confirmDeleteDescription": "定期取引の定義「{{description}}」を完全に削除します。既存の取引は残りますが、定期の紐付けが失われます。この操作は取り消せません。"
+    "confirmDeleteDescription": "定期取引の定義「{{description}}」を完全に削除します。既存の取引は残りますが、定期の紐付けが失われます。この操作は取り消せません。",
+    "wholeMonth": "Paid any day of the month",
+    "wholeMonthHelp": "A payment of the same amount made any day of the month replaces the expected one, not only near the due date.",
+    "progress": "{{done}} of {{total}}",
+    "installmentOffset": "Installments paid before",
+    "installmentOffsetHelp": "Installments of the contract paid before this bill was created, so the count follows the contract (e.g. 4 to start at installment 5)."
   },
   "rules": {
     "searchPlaceholder": "ルールを検索...",
@@ -2496,7 +2507,12 @@
     "upcoming": "Upcoming",
     "upcomingDesc": "Parcels dated in the future; they count towards the balance once due.",
     "upcomingOwesYou": "{{name}} will owe you",
-    "upcomingYouOwe": "You will owe {{name}}"
+    "upcomingYouOwe": "You will owe {{name}}",
+    "suggestion": "You transferred {{amount}} to {{name}} on {{date}}. Was it a settlement?",
+    "suggestionFull": "Pays off what you owe.",
+    "suggestionPartial": "Pays part of what you owe ({{owed}}).",
+    "suggestionAccept": "Record settlement",
+    "suggestionDismiss": "Not a settlement"
   },
   "privacy": {
     "hide": "金額を隠す",
@@ -3207,5 +3223,127 @@
     "needsOwn": "Click to enter your own credentials and enable this connector.",
     "useOwn": "Use my own credentials",
     "usingOwn": "Using my own credentials (change)"
+  },
+  "casa": {
+    "section": "Couple finances",
+    "title": "Home",
+    "noGroup": "Create a group with the other person to see shared expenses here.",
+    "goToGroups": "Go to Groups",
+    "chooseGroup": "Choose group",
+    "prevMonth": "Previous month",
+    "nextMonth": "Next month",
+    "you": "You",
+    "youPaidShort": "you paid",
+    "otherPaidShort": "{{name}} paid",
+    "yourPart": "your part {{amount}}",
+    "installment": "{{n}} of {{total}}",
+    "status": {
+      "planned": "Planned",
+      "pending": "On card",
+      "upcoming": "Upcoming",
+      "paid": "Paid"
+    },
+    "freq": {
+      "monthly": "a month",
+      "yearly": "a year",
+      "weekly": "a week",
+      "biweekly": "every 2 weeks",
+      "quarterly": "a quarter",
+      "semiannual": "every 6 months"
+    },
+    "settle": {
+      "title": "Settle up",
+      "hint": "Who owes whom today: split expenses minus settlements.",
+      "allSettled": "All settled",
+      "youOwe": "You owe {{name}}",
+      "owesYou": "{{name}} owes you",
+      "upcomingYouOwe": "Upcoming: you will owe {{name}} {{amount}}",
+      "upcomingOwesYou": "Upcoming: {{name}} will owe you {{amount}}",
+      "suggestions_one": "1 transfer looks like a settlement",
+      "suggestions_other": "{{count}} transfers look like settlements",
+      "openGroup": "Open the group"
+    },
+    "bills": {
+      "none": "No shared recurring bills this month.",
+      "paidOn": "paid on {{date}}",
+      "dueOn": "due {{date}}"
+    },
+    "division": {
+      "title": "This month's split",
+      "hint": "Everything split in the group this month.",
+      "total": "Household total this month",
+      "youPaid": "You paid",
+      "otherPaid": "{{name}} paid",
+      "yourShare": "Your share this month: {{amount}}",
+      "whoPaid": "Who paid each bill",
+      "none": "Nothing split this month yet."
+    },
+    "contracts": {
+      "title": "Contracts",
+      "hint": "Household installment plans and what is left.",
+      "none": "No recurring bill with an end date is shared with the group.",
+      "remaining": "{{amount}} left",
+      "ends": "ends {{date}}",
+      "each": "{{amount}} {{freq}}"
+    },
+    "stats": {
+      "total": "Household total",
+      "share": "Your share",
+      "open": "Left to pay"
+    },
+    "alerts": {
+      "late": "{{name}} was due on {{date}} and no payment showed up ({{amount}}).",
+      "dueToday": "{{name}} is due today ({{amount}}).",
+      "dueTomorrow": "{{name}} is due tomorrow ({{amount}}).",
+      "dueIn": "{{name}} is due in {{count}} days ({{amount}})."
+    },
+    "payables": {
+      "title": "Bills to pay",
+      "summary": "{{paid}} of {{total}} paid · {{amount}} open",
+      "next": "Next due",
+      "nextLine": "day {{day}} · {{name}}",
+      "allPaid": "All of this month's bills are paid.",
+      "lateFor_one": "{{count}} day late",
+      "lateFor_other": "{{count}} days late",
+      "dueToday": "due today",
+      "dueIn_one": "due in {{count}} day",
+      "dueIn_other": "due in {{count}} days",
+      "lateSince": "late · was due {{date}}",
+      "all": "All",
+      "chip": {
+        "paid": "All paid",
+        "late": "Late",
+        "open": "Open",
+        "lateShort": "late",
+        "nextShort": "next"
+      }
+    },
+    "closing": {
+      "button": "Month closing",
+      "title": "Closing · {{month}}",
+      "heading": "Household closing · {{month}}",
+      "paidBy": "Paid by {{name}}:",
+      "totalOf": "Total {{name}}: {{amount}}",
+      "houseTotal": "Household total: {{amount}}",
+      "shareOf": "{{name}}'s share: {{amount}}",
+      "settled": "All settled ✅",
+      "pending": "Left to settle: {{from}} → {{to}} {{amount}}",
+      "copy": "Copy to clipboard",
+      "copied": "Copied!"
+    },
+    "income": {
+      "title": "Simulate an income-based split",
+      "of": "{{name}}'s income",
+      "result": "Your share would be {{amount}} instead of {{even}}",
+      "hint": "Only a simulation: the values stay in this browser and do not change the split."
+    },
+    "history": {
+      "title": "Household history",
+      "hint": "Last 6 months · {{amount}} per month on average"
+    },
+    "mini": {
+      "youOwe": "You owe {{name}} {{amount}}",
+      "owesYou": "{{name}} owes you {{amount}}"
+    }
   }
 }

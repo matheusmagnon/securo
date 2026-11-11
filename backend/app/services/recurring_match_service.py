@@ -42,12 +42,14 @@ a promise with nothing outstanding is not a candidate. Nothing reaches it:
 banks do not post charges of zero, but it is a difference rather than an
 identity.
 """
+import calendar
+import dataclasses
 import uuid
 from datetime import date, timedelta
 from decimal import Decimal
-from typing import Any, Optional
+from typing import Any, Callable, Optional
 
-from sqlalchemy import select
+from sqlalchemy import and_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.account import Account
@@ -76,6 +78,20 @@ def _date_reach(policy: dict[str, Any]) -> tuple[int, int]:
         before = max(before, int(window.get("before_days", 0)))
         after = max(after, int(window.get("after_days", 0)))
     return before, after
+
+
+def _same_month(a: date, b: date) -> bool:
+    return (a.year, a.month) == (b.year, b.month)
+
+
+def _month_bounds(day: date) -> tuple[date, date]:
+    return day.replace(day=1), day.replace(day=calendar.monthrange(day.year, day.month)[1])
+
+
+def _widen_to_month(low: date, high: date, day: date) -> tuple[date, date]:
+    """A date range stretched to cover the whole month of `day`."""
+    first, last = _month_bounds(day)
+    return min(low, first), max(high, last)
 
 
 def _as_movement(transaction: Transaction) -> Movement:
@@ -116,6 +132,7 @@ def _best_movement(
     candidates,
     expectation: Expectation,
     policy: dict,
+    same_day: Optional[Callable[[Transaction], bool]] = None,
 ) -> Optional[Transaction]:
     """The charge that best answers one expected occurrence.
 
@@ -126,12 +143,20 @@ def _best_movement(
     unless the rule that linked them asks for a single candidate. On an equal
     score the first candidate passed in wins, and the callers pass them nearest
     first.
+
+    `same_day` marks a candidate the date must not count against: a bill
+    paid any day of its month, met by a charge of that month. The engine then
+    judges it as if it had landed on the expected day; amount, direction and
+    description are still judged as for any other bill.
     """
     linked = []
     for candidate in candidates:
         if candidate.is_ignored:
             continue
-        decision = evaluate(_as_movement(candidate), [expectation], policy)
+        movement = _as_movement(candidate)
+        if same_day is not None and same_day(candidate):
+            movement = dataclasses.replace(movement, when=expectation.when)
+        decision = evaluate(movement, [expectation], policy)
         if decision.port == "linked":
             linked.append((candidate, decision))
     return reconciliation_rule_service.pick_linked(linked, policy)[0]
@@ -154,6 +179,11 @@ async def find_real_tx_for_occurrence(
     # charge may be up to `before` days earlier than the occurrence, or `after`
     # days later.
     before, after = _date_reach(policy)
+    low = occurrence_date - timedelta(days=before)
+    high = occurrence_date + timedelta(days=after)
+    whole_month = bool(recurring.match_whole_month)
+    if whole_month:
+        low, high = _widen_to_month(low, high, occurrence_date)
     result = await session.execute(
         select(Transaction).where(
             Transaction.account_id == recurring.account_id,
@@ -161,8 +191,8 @@ async def find_real_tx_for_occurrence(
             Transaction.source.in_(_REAL_SOURCES),
             Transaction.currency == recurring.currency,
             Transaction.type == recurring.type,
-            Transaction.date >= occurrence_date - timedelta(days=before),
-            Transaction.date <= occurrence_date + timedelta(days=after),
+            Transaction.date >= low,
+            Transaction.date <= high,
         )
     )
     # The score only reads the description, so two charges can tie, and with a
@@ -174,7 +204,12 @@ async def find_real_tx_for_occurrence(
         result.scalars(),
         key=lambda tx: (abs((tx.date - occurrence_date).days), tx.date, tx.id),
     )
-    return _best_movement(nearest, _as_occurrence(recurring, occurrence_date), policy)
+    return _best_movement(
+        nearest,
+        _as_occurrence(recurring, occurrence_date),
+        policy,
+        same_day=(lambda tx: _same_month(tx.date, occurrence_date)) if whole_month else None,
+    )
 
 
 async def find_placeholder_for_incoming(
@@ -225,8 +260,15 @@ async def find_placeholder_for_incoming(
     # rule is an upper bound for the query.
     p_before, p_after = _date_reach(policy)
     r_before, r_after = _date_reach(composed)
+    low = tx_date - timedelta(days=max(p_before, r_after))
+    high = tx_date + timedelta(days=max(p_after, r_before))
+    month_first, month_last = _month_bounds(tx_date)
     result = await session.execute(
-        select(Transaction, RecurringTransaction.frequency)
+        select(
+            Transaction,
+            RecurringTransaction.frequency,
+            RecurringTransaction.match_whole_month,
+        )
         .join(
             RecurringTransaction,
             RecurringTransaction.id == Transaction.recurring_transaction_id,
@@ -238,8 +280,16 @@ async def find_placeholder_for_incoming(
             Transaction.external_id.is_(None),
             Transaction.currency == currency,
             Transaction.type == tx_type,
-            Transaction.date >= tx_date - timedelta(days=max(p_before, r_after)),
-            Transaction.date <= tx_date + timedelta(days=max(p_after, r_before)),
+            or_(
+                and_(Transaction.date >= low, Transaction.date <= high),
+                # A bill paid any day of its month: its placeholder anywhere
+                # in the charge's month.
+                and_(
+                    RecurringTransaction.match_whole_month.is_(True),
+                    Transaction.date >= month_first,
+                    Transaction.date <= month_last,
+                ),
+            ),
         )
     )
     # The score only reads the description, so tied placeholders go to the
@@ -249,6 +299,9 @@ async def find_placeholder_for_incoming(
         result.all(),
         key=lambda row: (abs((row[0].date - tx_date).days), row[0].date, row[0].id),
     )
+    whole_month_ids = {
+        row[0].id for row in rows if row[2] and _same_month(row[0].date, tx_date)
+    }
     incoming = Expectation(
         kind="recurring",
         id=uuid.uuid4(),
@@ -259,7 +312,10 @@ async def find_placeholder_for_incoming(
         description=description,
         account_id=account_id,
     )
-    found = _best_movement([row[0] for row in rows], incoming, policy)
+    found = _best_movement(
+        [row[0] for row in rows], incoming, policy,
+        same_day=lambda placeholder: placeholder.id in whole_month_ids,
+    )
     if found is not None or not rows:
         return found
 
@@ -272,7 +328,7 @@ async def find_placeholder_for_incoming(
         account_id=account_id,
     )
     linked = []
-    for placeholder, frequency in rows:
+    for placeholder, frequency, _whole_month in rows:
         if placeholder.is_ignored:
             continue
         decision = evaluate(
@@ -284,7 +340,7 @@ async def find_placeholder_for_incoming(
                     amount=Decimal(placeholder.amount or 0),
                     currency=placeholder.currency,
                     direction=placeholder.type,
-                    when=placeholder.date,
+                    when=tx_date if placeholder.id in whole_month_ids else placeholder.date,
                     description=placeholder.description,
                     account_id=placeholder.account_id,
                 )
@@ -352,6 +408,8 @@ async def find_bill_for_incoming(
         occurrence = adjust_weekend_date(
             recurring.next_occurrence, recurring.weekend_adjustment
         )
+        if recurring.match_whole_month and _same_month(tx_date, recurring.next_occurrence):
+            occurrence = tx_date
         decision = evaluate(
             charge,
             [_as_occurrence(recurring, occurrence)],

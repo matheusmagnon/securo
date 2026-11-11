@@ -133,7 +133,8 @@
     "aiAgents": "Agentes de IA",
     "documentation": "Documentação",
     "collapseSidebar": "Recolher barra lateral",
-    "expandSidebar": "Expandir barra lateral"
+    "expandSidebar": "Expandir barra lateral",
+    "casa": "Casa"
   },
   "invoices": {
     "title": "Cobranças",
@@ -1561,8 +1562,18 @@
     "generatePending": "Gerar Pendentes",
     "autoGenerate": "Gerar transações automaticamente",
     "autoGenerateHelp": "Cria uma transação sempre que esta conta vence. Desativa para aguardar o lançamento real (por exemplo, da sincronização bancária) e mostrá-la apenas como prevista até lá.",
+    "splitGroup": "Dividir com o grupo",
+    "splitGroupNone": "Não dividir",
+    "splitGroupHelp": "Cada ocorrência já nasce dividida em partes iguais entre os membros do grupo, e o pagamento real que a substituir mantém a divisão.",
+    "monthStart": "Criar no início do mês",
+    "monthStartHelp": "A ocorrência é criada no dia 1 do mês em que vence, para aparecer como a vencer antes de ser paga.",
     "fxEstimate": "Estimativa baseada na última taxa de câmbio ({{rate}}). O valor final pode mudar.",
-    "confirmDeleteDescription": "A definição recorrente \"{{description}}\" será eliminada permanentemente. As transações existentes manter-se-ão, mas perderão a ligação recorrente. Esta ação não pode ser desfeita."
+    "confirmDeleteDescription": "A definição recorrente \"{{description}}\" será eliminada permanentemente. As transações existentes manter-se-ão, mas perderão a ligação recorrente. Esta ação não pode ser desfeita.",
+    "wholeMonth": "Pago em qualquer dia do mês",
+    "wholeMonthHelp": "Um pagamento do mesmo valor feito em qualquer dia do mês substitui o previsto, não só perto do vencimento.",
+    "progress": "{{done}} de {{total}}",
+    "installmentOffset": "Parcelas já pagas antes",
+    "installmentOffsetHelp": "Parcelas do contrato pagas antes de cadastrar esta recorrente, para a contagem seguir o contrato (ex.: 4 para começar na parcela 5)."
   },
   "rules": {
     "searchPlaceholder": "Procurar regras...",
@@ -2500,7 +2511,12 @@
     "upcoming": "A vencer",
     "upcomingDesc": "Parcelas com data futura, que passam a contar no saldo quando vencerem.",
     "upcomingOwesYou": "{{name}} vai te dever",
-    "upcomingYouOwe": "Você vai dever a {{name}}"
+    "upcomingYouOwe": "Você vai dever a {{name}}",
+    "suggestion": "Você transferiu {{amount}} para {{name}} em {{date}}. Foi um acerto do grupo?",
+    "suggestionFull": "Quita o que você deve.",
+    "suggestionPartial": "Paga parte do que você deve ({{owed}}).",
+    "suggestionAccept": "Registrar acerto",
+    "suggestionDismiss": "Não é acerto"
   },
   "privacy": {
     "hide": "Ocultar valores",
@@ -3211,5 +3227,127 @@
     "needsOwn": "Clique para informar as suas credenciais e ativar este conector.",
     "useOwn": "Usar minhas próprias credenciais",
     "usingOwn": "Usando minhas credenciais (alterar)"
+  },
+  "casa": {
+    "section": "Finanças em casal",
+    "title": "Casa",
+    "noGroup": "Crie um grupo com a outra pessoa para ver as despesas compartilhadas aqui.",
+    "goToGroups": "Ir para Grupos",
+    "chooseGroup": "Escolher grupo",
+    "prevMonth": "Mês anterior",
+    "nextMonth": "Próximo mês",
+    "you": "Você",
+    "youPaidShort": "você pagou",
+    "otherPaidShort": "{{name}} pagou",
+    "yourPart": "sua parte {{amount}}",
+    "installment": "{{n}} de {{total}}",
+    "status": {
+      "planned": "Previsto",
+      "pending": "No cartão",
+      "upcoming": "A vencer",
+      "paid": "Pago"
+    },
+    "freq": {
+      "monthly": "por mês",
+      "yearly": "por ano",
+      "weekly": "por semana",
+      "biweekly": "a cada 2 semanas",
+      "quarterly": "por trimestre",
+      "semiannual": "por semestre"
+    },
+    "settle": {
+      "title": "Acerto",
+      "hint": "Quem deve a quem hoje, pelas despesas divididas menos os acertos.",
+      "allSettled": "Tudo acertado",
+      "youOwe": "Você deve para {{name}}",
+      "owesYou": "{{name}} te deve",
+      "upcomingYouOwe": "A vencer: você vai dever {{amount}} para {{name}}",
+      "upcomingOwesYou": "A vencer: {{name}} vai te dever {{amount}}",
+      "suggestions_one": "1 transferência parece um acerto",
+      "suggestions_other": "{{count}} transferências parecem acertos",
+      "openGroup": "Abrir o grupo"
+    },
+    "bills": {
+      "none": "Nenhuma conta recorrente da casa neste mês.",
+      "paidOn": "paga em {{date}}",
+      "dueOn": "vence {{date}}"
+    },
+    "division": {
+      "title": "Divisão do mês",
+      "hint": "Tudo que foi dividido no grupo neste mês.",
+      "total": "Total da casa no mês",
+      "youPaid": "Você pagou",
+      "otherPaid": "{{name}} pagou",
+      "yourShare": "Sua parte do mês: {{amount}}",
+      "whoPaid": "Quem pagou cada conta",
+      "none": "Nada dividido neste mês ainda."
+    },
+    "contracts": {
+      "title": "Contratos",
+      "hint": "Parcelamentos da casa e quanto falta.",
+      "none": "Nenhuma recorrente com data de fim dividida com o grupo.",
+      "remaining": "Faltam {{amount}}",
+      "ends": "termina em {{date}}",
+      "each": "{{amount}} {{freq}}"
+    },
+    "stats": {
+      "total": "Total da casa",
+      "share": "Sua parte",
+      "open": "Falta pagar"
+    },
+    "alerts": {
+      "late": "{{name}} venceu em {{date}} e não apareceu pagamento ({{amount}}).",
+      "dueToday": "{{name}} vence hoje ({{amount}}).",
+      "dueTomorrow": "{{name}} vence amanhã ({{amount}}).",
+      "dueIn": "{{name}} vence em {{count}} dias ({{amount}})."
+    },
+    "payables": {
+      "title": "Contas a pagar",
+      "summary": "{{paid}} de {{total}} pagas · {{amount}} em aberto",
+      "next": "Próximo vencimento",
+      "nextLine": "dia {{day}} · {{name}}",
+      "allPaid": "Todas as contas do mês estão pagas.",
+      "lateFor_one": "atrasada há {{count}} dia",
+      "lateFor_other": "atrasada há {{count}} dias",
+      "dueToday": "vence hoje",
+      "dueIn_one": "vence em {{count}} dia",
+      "dueIn_other": "vence em {{count}} dias",
+      "lateSince": "atrasada · venceu {{date}}",
+      "all": "Todas",
+      "chip": {
+        "paid": "Tudo pago",
+        "late": "Atrasada",
+        "open": "Em aberto",
+        "lateShort": "atraso",
+        "nextShort": "próx."
+      }
+    },
+    "closing": {
+      "button": "Fechamento do mês",
+      "title": "Fechamento · {{month}}",
+      "heading": "Fechamento da casa · {{month}}",
+      "paidBy": "Pagos por {{name}}:",
+      "totalOf": "Total {{name}}: {{amount}}",
+      "houseTotal": "Total da casa: {{amount}}",
+      "shareOf": "Parte de {{name}}: {{amount}}",
+      "settled": "Tudo acertado ✅",
+      "pending": "Falta acertar: {{from}} → {{to}} {{amount}}",
+      "copy": "Copiar para o WhatsApp",
+      "copied": "Copiado!"
+    },
+    "income": {
+      "title": "Simular divisão pela renda",
+      "of": "Renda de {{name}}",
+      "result": "Sua parte seria {{amount}} em vez de {{even}}",
+      "hint": "Só uma simulação: os valores ficam neste navegador e não mudam a divisão."
+    },
+    "history": {
+      "title": "Histórico da casa",
+      "hint": "Últimos 6 meses · média de {{amount}} por mês"
+    },
+    "mini": {
+      "youOwe": "Você deve {{amount}} para {{name}}",
+      "owesYou": "{{name}} te deve {{amount}}"
+    }
   }
 }

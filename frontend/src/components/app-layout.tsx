@@ -67,7 +67,7 @@ import { CommandPalette } from '@/components/command-palette'
 import { useCommandPaletteHotkey } from '@/hooks/use-command-palette-hotkey'
 import { GlobalChatPanel } from '@/components/global-chat-panel'
 import { useFeatureFlags } from '@/hooks/use-feature-flags'
-import { Bot, Plus, Search, Sparkles } from 'lucide-react'
+import { Bot, HeartHandshake, Plus, Search, Sparkles } from 'lucide-react'
 import { setThemeBasedOnSystem } from '@/lib/theme-utils'
 import { nextTheme, THEME_LABEL_KEY } from '@/lib/theme-cycle'
 import { useLocalAuthEnabled } from '@/hooks/use-local-auth'
@@ -411,6 +411,33 @@ export function AppLayout() {
                 so until the workspace list lands there is no honest answer
                 — a placeholder beats both an empty sidebar and a guess. */}
             {workspaceLoading && <NavSkeleton />}
+            {/* The household view: pinned above the sections, since it is
+                a daily destination built on the groups module rather than
+                a module of its own (nav-items keeps one link per module). */}
+            {!workspaceLoading && hasModule('split_groups') && (() => {
+              const isActive = location.pathname.startsWith('/casa')
+              return (
+                <Link
+                  to="/casa"
+                  onClick={() => setSidebarOpen(false)}
+                  title={t('nav.casa')}
+                  aria-label={t('nav.casa')}
+                  className={cn(
+                    'flex items-center gap-3 text-[13px] font-medium transition-all rounded-lg px-3 py-2 mb-1',
+                    isActive
+                      ? 'bg-primary/[0.08] text-primary border-l-[3px] border-primary pl-[9px]'
+                      : 'text-sidebar-muted hover:bg-sidebar-accent hover:text-sidebar-foreground',
+                    desktopSidebarCollapsed && 'lg:h-10 lg:w-10 lg:justify-center lg:border-l-0 lg:px-0 lg:pl-0',
+                  )}
+                >
+                  <HeartHandshake
+                    size={17}
+                    className={cn('shrink-0', isActive ? 'text-primary' : 'text-sidebar-muted', desktopSidebarCollapsed && 'lg:h-5 lg:w-5')}
+                  />
+                  <span className={cn(desktopSidebarCollapsed && 'lg:hidden')}>{t('nav.casa')}</span>
+                </Link>
+              )
+            })()}
             {!workspaceLoading && finalNavItems.map((item, idx) => {
               if (item.type === 'separator') {
                 // The first separator sits right below the search bar

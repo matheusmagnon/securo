@@ -43,6 +43,7 @@ import { CheckCircle2, CalendarIcon, ChevronDown, Clock, Paperclip, Target, Arro
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { ICON_MAP } from '@/lib/category-icons'
 import { PageHeader } from '@/components/page-header'
+import { CasaMiniCard } from '@/components/casa-cards'
 import { PageRefreshButton } from '@/components/page-refresh-button'
 import { CategoryIcon } from '@/components/category-icon'
 import { CategorySplitBadge, TransactionCategoryIcon } from '@/components/category-lines-display'
@@ -1045,6 +1046,9 @@ export default function DashboardPage() {
           </div>
         )
       )}
+
+      {/* The shared household at a glance */}
+      <CasaMiniCard locale={locale} />
 
       {/* Charts: Category Spending Bars + Balance Evolution */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-5" style={{ gridAutoRows: 'minmax(380px, auto)' }}>

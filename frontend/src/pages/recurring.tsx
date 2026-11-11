@@ -3,7 +3,7 @@ import { getAccountName, sortAccountsByDisplayName } from '@/lib/account-utils'
 import { useTranslation } from 'react-i18next'
 import { useDisplayLocale, useDateLocale } from '@/hooks/use-display-locale'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { categories as categoriesApi, categoryGroups as categoryGroupsApi, recurring as recurringApi, accounts as accountsApi, currencies as currenciesApi } from '@/lib/api'
+import { categories as categoriesApi, categoryGroups as categoryGroupsApi, recurring as recurringApi, accounts as accountsApi, currencies as currenciesApi, groups as groupsApi } from '@/lib/api'
 import { extractApiError } from '@/lib/api-errors'
 import { localDateString } from '@/lib/date-utils'
 import { invalidateFinancialQueries } from '@/lib/invalidate-queries'
@@ -236,6 +236,11 @@ function RecurringTab() {
                   </td>
                   <td className="py-3 text-xs text-muted-foreground tabular-nums hidden md:table-cell">
                     {new Date(rt.next_occurrence + 'T00:00:00').toLocaleDateString(dateLocale)}
+                    {rt.occurrences_total != null && (
+                      <span className="block text-[11px]">
+                        {t('recurring.progress', { done: rt.occurrences_done ?? 0, total: rt.occurrences_total })}
+                      </span>
+                    )}
                   </td>
                   <td className="py-3 hidden sm:table-cell">
                     <span className={cn(
@@ -357,10 +362,21 @@ function RecurringForm({
   const [dayOfMonth, setDayOfMonth] = useState(recurring?.day_of_month?.toString() ?? '')
   const [startDate, setStartDate] = useState(recurring?.start_date ?? localDateString())
   const [endDate, setEndDate] = useState(recurring?.end_date ?? '')
+  // Contract installments paid before this bill existed ("5 of 156").
+  const [installmentOffset, setInstallmentOffset] = useState(String(recurring?.installment_offset ?? 0))
   const [categoryId, setCategoryId] = useState(recurring?.category_id ?? '')
   const [accountId, setAccountId] = useState(recurring?.account_id ?? '')
   const [isActive, setIsActive] = useState(recurring?.is_active ?? true)
   const [autoGenerate, setAutoGenerate] = useState(recurring?.auto_generate ?? true)
+  const [monthStart, setMonthStart] = useState(recurring?.generate_at_month_start ?? false)
+  // Paid any day of its month: a charge of that month replaces the occurrence.
+  const [wholeMonth, setWholeMonth] = useState(recurring?.match_whole_month ?? false)
+  // A bill shared with a group: every occurrence starts split equally.
+  const [splitGroupId, setSplitGroupId] = useState(recurring?.split_group_id ?? '')
+  const { data: groupList = [] } = useQuery({
+    queryKey: ['groups'],
+    queryFn: () => groupsApi.list(false),
+  })
   // Split across categories, as in the transaction dialog: every occurrence
   // the schedule generates starts with these parts.
   const displayLocale = useDisplayLocale()
@@ -408,6 +424,10 @@ function RecurringForm({
           account_id: accountId || null,
           is_active: isActive,
           auto_generate: autoGenerate,
+          generate_at_month_start: monthStart,
+          installment_offset: endDate ? Math.max(0, parseInt(installmentOffset) || 0) : 0,
+          match_whole_month: frequency === 'weekly' || frequency === 'biweekly' ? false : wholeMonth,
+          split_group_id: splitGroupId || null,
           ...(lineRows
             ? { category_lines: buildLinesPayload(lineRows, lineShareType, displayLocale) }
             : hadInitialLines
@@ -483,6 +503,21 @@ function RecurringForm({
           <DatePickerInput value={endDate} onChange={setEndDate} placeholder={t('recurring.endDate')} className="w-full justify-start" />
         </div>
       </div>
+      {endDate && (
+        <div className="space-y-2">
+          <Label htmlFor="recurring-installment-offset">{t('recurring.installmentOffset')}</Label>
+          <Input
+            id="recurring-installment-offset"
+            type="number"
+            min={0}
+            inputMode="numeric"
+            value={installmentOffset}
+            onChange={(e) => setInstallmentOffset(e.target.value)}
+            className="w-32"
+          />
+          <p className="text-xs text-muted-foreground">{t('recurring.installmentOffsetHelp')}</p>
+        </div>
+      )}
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
           <div className="flex items-center justify-between min-h-5">
@@ -549,6 +584,23 @@ function RecurringForm({
           groups={categoryGroups}
         />
       )}
+      {(groupList.length > 0 || splitGroupId) && (
+        <div className="space-y-2">
+          <Label>{t('recurring.splitGroup')}</Label>
+          <select
+            className={selectClass}
+            value={splitGroupId}
+            onChange={(e) => setSplitGroupId(e.target.value)}
+            disabled={!!lineRows}
+          >
+            <option value="">{t('recurring.splitGroupNone')}</option>
+            {groupList.map((g) => (
+              <option key={g.id} value={g.id}>{g.name}</option>
+            ))}
+          </select>
+          <p className="text-xs text-muted-foreground">{t('recurring.splitGroupHelp')}</p>
+        </div>
+      )}
       <label className="flex items-start gap-2 cursor-pointer">
         <input
           type="checkbox"
@@ -561,6 +613,34 @@ function RecurringForm({
           <span className="block text-xs text-muted-foreground">{t('recurring.autoGenerateHelp')}</span>
         </span>
       </label>
+      {autoGenerate && (
+        <label className="flex items-start gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={monthStart}
+            onChange={(e) => setMonthStart(e.target.checked)}
+            className="h-4 w-4 mt-0.5 rounded border-border"
+          />
+          <span className="text-sm text-foreground">
+            {t('recurring.monthStart')}
+            <span className="block text-xs text-muted-foreground">{t('recurring.monthStartHelp')}</span>
+          </span>
+        </label>
+      )}
+      {frequency !== 'weekly' && frequency !== 'biweekly' && (
+        <label className="flex items-start gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={wholeMonth}
+            onChange={(e) => setWholeMonth(e.target.checked)}
+            className="h-4 w-4 mt-0.5 rounded border-border"
+          />
+          <span className="text-sm text-foreground">
+            {t('recurring.wholeMonth')}
+            <span className="block text-xs text-muted-foreground">{t('recurring.wholeMonthHelp')}</span>
+          </span>
+        </label>
+      )}
       {recurring && (
         <label className="flex items-center gap-2 cursor-pointer">
           <input

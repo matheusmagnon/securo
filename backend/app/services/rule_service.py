@@ -1024,49 +1024,20 @@ async def _split_by_rule(
     """Split `transaction` equally among the members of the rule's group.
 
     The first matching rule with a split action wins. A transaction already
-    split (among people or across categories), a transfer, or one not yet
-    written is left alone, and so is a group the rule can no longer reach:
-    a stale rule must not fail the sync or import that ran it.
+    split (among people or across categories), a transfer, or a group the
+    rule can no longer reach is left alone: a stale rule must not fail the
+    sync or import that ran it.
+
+    A detached rule preview (no row yet) only records the split, so a
+    recurring placeholder the incoming charge replaces can take it.
     """
-    import logging
+    from app.services import recurring_split_service
 
-    from app.models.group import GroupMember
-    from app.models.transaction_split import TransactionSplit
-    from app.schemas.transaction_split import TransactionSplitInput, TransactionSplitsInput
-    from app.services import split_service
-
-    if transaction.id is None or transaction.has_category_lines or transaction.transfer_pair_id:
+    user_id = rule.user_id or fallback_user_id
+    if transaction.id is None:
+        setattr(transaction, recurring_split_service.RULE_SPLIT_ATTR, (user_id, group_value))
         return
-    existing = await session.execute(
-        select(TransactionSplit.id).where(TransactionSplit.transaction_id == transaction.id).limit(1)
-    )
-    if existing.first() is not None:
-        return
-    try:
-        group_id = uuid.UUID(str(group_value))
-    except (TypeError, ValueError):
-        return
-    member_ids = (
-        await session.execute(
-            select(GroupMember.id).where(GroupMember.group_id == group_id).order_by(GroupMember.created_at)
-        )
-    ).scalars().all()
-    if len(member_ids) < 2:
-        return
-    payload = TransactionSplitsInput(
-        share_type="equal",
-        splits=[TransactionSplitInput(group_member_id=m) for m in member_ids],
-    )
-    try:
-        async with session.begin_nested():
-            await split_service.replace_splits(
-                session, transaction, payload, rule.user_id or fallback_user_id
-            )
-    except ValueError:
-        logging.getLogger(__name__).warning(
-            "Rule %s could not split transaction %s into group %s",
-            rule.id, transaction.id, group_id, exc_info=True,
-        )
+    await recurring_split_service.split_equally(session, transaction, group_value, user_id)
 
 
 def _rule_effect_state(tx: Transaction) -> tuple:

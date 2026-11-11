@@ -29,7 +29,7 @@ from app.models.transaction import Transaction
 from app.models.transaction_category_line import TransactionCategoryLine
 from app.models.user import User
 from app.providers import get_provider
-from app.services import installment_split_service, provider_credential_service
+from app.services import installment_split_service, provider_credential_service, recurring_split_service
 from app.providers.base import (
     AccountData,
     BankProvider,
@@ -2868,6 +2868,7 @@ async def sync_connection(
                 if placeholder:
                     if placeholder.is_ignored:
                         continue
+                    previous_amount = placeholder.amount
                     placeholder.external_id = txn_data.external_id
                     placeholder.source = "sync"
                     placeholder.status = txn_data.status
@@ -2904,6 +2905,10 @@ async def sync_connection(
                     )
                     if preview.is_ignored:
                         placeholder.is_ignored = True
+                    # A shared bill keeps (or gets) its group split.
+                    await recurring_split_service.after_placeholder_merge(
+                        session, placeholder, preview, previous_amount
+                    )
                     merged_count += 1
                     continue
 
@@ -2937,6 +2942,9 @@ async def sync_connection(
                 if recurring_link_for_split is not None:
                     # A split bill hands its parts to the charge it claims.
                     await category_line_service.apply_template_split(
+                        session, transaction, recurring_link_for_split
+                    )
+                    await recurring_split_service.split_occurrence(
                         session, transaction, recurring_link_for_split
                     )
                 if transaction.category_id is None and not transaction.has_category_lines:

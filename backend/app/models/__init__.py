@@ -29,6 +29,7 @@ from app.models.transaction_split import TransactionSplit
 from app.models.transaction_category_line import TransactionCategoryLine
 from app.models.recurring_transaction_category_line import RecurringTransactionCategoryLine
 from app.models.group_settlement import GroupSettlement
+from app.models.group_settlement_dismissal import GroupSettlementDismissal
 from app.models.collection import Collection, collection_accounts, collection_asset_groups
 from app.models.invoice import (
     Invoice,
@@ -90,6 +91,7 @@ __all__ = [
     "TransactionCategoryLine",
     "RecurringTransactionCategoryLine",
     "GroupSettlement",
+    "GroupSettlementDismissal",
     "Collection",
     "Invoice",
     "InvoiceAllocation",

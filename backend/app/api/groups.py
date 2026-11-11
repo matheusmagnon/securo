@@ -1,5 +1,6 @@
 import uuid
-from typing import Literal
+from datetime import date
+from typing import Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -16,6 +17,7 @@ from app.schemas.group import (
     GroupMemberCreate,
     GroupMemberRead,
     GroupMemberUpdate,
+    GroupOverview,
     GroupRead,
     GroupSummary,
     GroupUpdate,
@@ -24,13 +26,16 @@ from app.schemas.group_settlement import (
     GroupSettlementCreate,
     GroupSettlementRead,
     GroupSettlementUpdate,
+    SettlementSuggestionRead,
 )
 from app.schemas.transaction import TransactionRead
 from app.services import (
     balance_service,
+    group_overview_service,
     group_service,
     group_summary_service,
     settlement_service,
+    settlement_suggestion_service,
 )
 
 router = APIRouter(prefix="/api/groups", tags=["groups"])
@@ -217,6 +222,32 @@ async def get_summary(
     return summary
 
 
+@router.get("/{group_id}/overview", response_model=GroupOverview)
+async def get_overview(
+    group_id: uuid.UUID,
+    month: Optional[str] = Query(
+        None, pattern=r"^\d{4}-(0[1-9]|1[0-2])$", description="YYYY-MM; defaults to this month"
+    ),
+    ctx: WorkspaceContext = Depends(current_workspace),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """One month of the group: what it cost, who paid, the shared bills
+    (paid or due) and how far along the long contracts are."""
+    if month is None:
+        from app.core.app_clock import get_workspace_timezone, today_in
+
+        first = today_in(await get_workspace_timezone(session, ctx.workspace.id)).replace(day=1)
+    else:
+        year, mon = (int(part) for part in month.split("-"))
+        first = date(year, mon, 1)
+    overview = await group_overview_service.compute_overview(
+        session, group_id, ctx.workspace.id, ctx.user_id, first
+    )
+    if overview is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Group not found")
+    return overview
+
+
 @router.get("/{group_id}/balances", response_model=GroupBalances)
 async def get_balances(
     group_id: uuid.UUID,
@@ -229,6 +260,40 @@ async def get_balances(
     if balances is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Group not found")
     return balances
+
+
+@router.get(
+    "/{group_id}/settlement-suggestions", response_model=list[SettlementSuggestionRead]
+)
+async def list_settlement_suggestions(
+    group_id: uuid.UUID,
+    ctx: WorkspaceContext = Depends(current_workspace),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """The caller's transfers to members that look like settlements."""
+    suggestions = await settlement_suggestion_service.list_suggestions(
+        session, group_id, ctx.workspace.id, ctx.user_id
+    )
+    if suggestions is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Group not found")
+    return suggestions
+
+
+@router.post(
+    "/{group_id}/settlement-suggestions/{transaction_id}/dismiss",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def dismiss_settlement_suggestion(
+    group_id: uuid.UUID,
+    transaction_id: uuid.UUID,
+    ctx: WorkspaceContext = Depends(current_writable_workspace),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """Mark one of the caller's transfers as not a settlement of this group."""
+    if not await settlement_suggestion_service.dismiss(
+        session, group_id, ctx.workspace.id, ctx.user_id, transaction_id
+    ):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
 
 
 @router.get("/{group_id}/settlements", response_model=list[GroupSettlementRead])

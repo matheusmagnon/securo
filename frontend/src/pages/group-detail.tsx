@@ -9,6 +9,7 @@ import {
   ArrowLeft,
   ArrowRight,
   ChevronDown,
+  Lightbulb,
   Link2,
   Receipt,
   TrendingDown,
@@ -197,6 +198,14 @@ export default function GroupDetailPage() {
     enabled: !!groupId,
   })
 
+  // The viewer's transfers to members that look like settlements, offered
+  // for them to record (never recorded on their own).
+  const { data: settleSuggestions = [] } = useQuery({
+    queryKey: ['groups', groupId, 'settlement-suggestions'],
+    queryFn: () => groupsApi.settlementSuggestions.list(groupId),
+    enabled: !!groupId,
+  })
+
   // The recent-activity list stays capped — it feeds the "Recent
   // transactions" card and nothing else.
   const { data: groupTxs } = useQuery({
@@ -350,6 +359,7 @@ export default function GroupDetailPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['groups', groupId, 'settlements'] })
       queryClient.invalidateQueries({ queryKey: ['groups', groupId, 'balances'] })
+      queryClient.invalidateQueries({ queryKey: ['groups', groupId, 'settlement-suggestions'] })
       setSettleOpen(false)
       toast.success(t('splitGroups.settled'))
     },
@@ -368,6 +378,15 @@ export default function GroupDetailPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['groups', groupId, 'settlements'] })
       queryClient.invalidateQueries({ queryKey: ['groups', groupId, 'balances'] })
+      queryClient.invalidateQueries({ queryKey: ['groups', groupId, 'settlement-suggestions'] })
+    },
+  })
+
+  const dismissSuggestionMutation = useMutation({
+    mutationFn: (transactionId: string) =>
+      groupsApi.settlementSuggestions.dismiss(groupId, transactionId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['groups', groupId, 'settlement-suggestions'] })
     },
   })
 
@@ -781,6 +800,69 @@ export default function GroupDetailPage() {
           <div className="text-center py-6 text-muted-foreground text-sm">
             {t('splitGroups.allSettled')}
           </div>
+        )}
+        {canWrite && settleSuggestions.length > 0 && (
+          <ul className="border-t border-border divide-y divide-border">
+            {settleSuggestions.map((sg) => {
+              const amount = Number(sg.amount)
+              const owedNow = Number(sg.owed)
+              const name = memberName_(sg.to_member_id)
+              const when = new Date(sg.date + 'T00:00:00').toLocaleDateString(dateLocale)
+              return (
+                <li
+                  key={sg.transaction_id}
+                  className="flex flex-col gap-2 px-4 py-3 bg-amber-50 dark:bg-amber-950/30 sm:flex-row sm:items-center sm:justify-between"
+                >
+                  <div className="flex items-start gap-2 text-sm">
+                    <Lightbulb size={16} className="mt-0.5 shrink-0 text-amber-500" />
+                    <div>
+                      <div className="text-foreground">
+                        {t('splitGroups.suggestion', {
+                          amount: formatCurrency(amount, sg.currency, locale),
+                          name,
+                          date: when,
+                        })}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {sg.matches_balance
+                          ? t('splitGroups.suggestionFull')
+                          : t('splitGroups.suggestionPartial', {
+                              owed: formatCurrency(owedNow, sg.currency, locale),
+                            })}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex shrink-0 gap-2 self-end sm:self-auto">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      disabled={dismissSuggestionMutation.isPending}
+                      onClick={() => dismissSuggestionMutation.mutate(sg.transaction_id)}
+                    >
+                      {t('splitGroups.suggestionDismiss')}
+                    </Button>
+                    <Button
+                      size="sm"
+                      disabled={settlementMutation.isPending}
+                      onClick={() =>
+                        settlementMutation.mutate({
+                          from_member_id: sg.from_member_id,
+                          to_member_id: sg.to_member_id,
+                          amount,
+                          currency: sg.currency,
+                          date: sg.date,
+                          transaction_id: sg.transaction_id,
+                          receiver_transaction_id: sg.receiver_transaction_id,
+                        })
+                      }
+                    >
+                      {t('splitGroups.suggestionAccept')}
+                    </Button>
+                  </div>
+                </li>
+              )
+            })}
+          </ul>
         )}
         {balances && !ownerSideLines && (balances.upcoming_lines?.length ?? 0) > 0 && (
           <div className="border-t border-border">

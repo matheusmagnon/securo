@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import date as _Date, datetime
 from decimal import Decimal
 from typing import Literal, Optional
 
@@ -111,3 +111,72 @@ class GroupSummary(BaseModel):
     total_moved: Decimal
     months: list[GroupSummaryMonth] = []
     categories: list[GroupSummaryCategory] = []
+
+
+class GroupOverviewMember(BaseModel):
+    id: uuid.UUID
+    name: str
+
+
+class GroupOverviewAmount(BaseModel):
+    member_id: uuid.UUID
+    amount: Decimal
+
+
+class GroupOverviewItem(BaseModel):
+    transaction_id: uuid.UUID
+    date: _Date
+    description: str
+    category_name: Optional[str] = None
+    category_color: Optional[str] = None
+    category_icon: Optional[str] = None
+    type: str
+    amount: Decimal
+    payer_member_id: Optional[uuid.UUID] = None
+    # planned | pending | upcoming | paid
+    status: str
+    recurring: bool = False
+    my_share: Optional[Decimal] = None
+
+
+class GroupOverviewBill(BaseModel):
+    recurring_id: uuid.UUID
+    description: str
+    due_date: _Date
+    amount: Decimal
+    payer_member_id: Optional[uuid.UUID] = None
+    paid: bool
+    paid_date: Optional[_Date] = None
+    number: int
+    total: Optional[int] = None
+
+
+class GroupOverviewContract(BaseModel):
+    recurring_id: uuid.UUID
+    description: str
+    amount: Decimal
+    frequency: str
+    payer_member_id: Optional[uuid.UUID] = None
+    done: int
+    total: int
+    remaining_amount: Decimal
+    end_date: _Date
+    next_date: _Date
+
+
+class GroupOverview(BaseModel):
+    """One month of the group: cost, who paid, bills and contracts."""
+
+    group_id: uuid.UUID
+    month: str
+    default_currency: str
+    self_member_id: Optional[uuid.UUID] = None
+    members: list[GroupOverviewMember]
+    balance_lines: list[GroupBalanceLine] = []
+    upcoming_lines: list[GroupBalanceLine] = []
+    total: Decimal
+    paid_by: list[GroupOverviewAmount]
+    share_of: list[GroupOverviewAmount]
+    items: list[GroupOverviewItem]
+    bills: list[GroupOverviewBill]
+    contracts: list[GroupOverviewContract]

@@ -27,7 +27,7 @@ from app.schemas.transaction_category_line import (
     TransactionCategoryLineInput,
     TransactionCategoryLinesInput,
 )
-from app.services import category_line_service, reconciliation_service, recurring_match_service
+from app.services import category_line_service, reconciliation_service, recurring_match_service, recurring_split_service
 from app.services.credit_card_service import apply_effective_date
 from app.services.category_service import get_assignable_category_ids
 from app.services.rule_engine import apply_rule_actions, evaluate_conditions, merge_notes
@@ -1236,6 +1236,7 @@ async def import_transactions(
             preview.description,
         )
         if placeholder and not placeholder.is_ignored:
+            previous_amount = placeholder.amount
             placeholder.source = source
             placeholder.external_id = txn_data.external_id
             placeholder.import_id = import_log.id
@@ -1285,6 +1286,10 @@ async def import_transactions(
             placeholder.notes = merge_notes(placeholder.notes, preview.notes)
             if preview.is_ignored:
                 placeholder.is_ignored = True
+            # A shared bill keeps (or gets) its group split.
+            await recurring_split_service.after_placeholder_merge(
+                session, placeholder, preview, previous_amount
+            )
             imported += 1
             continue
 
@@ -1338,6 +1343,8 @@ async def import_transactions(
 
         if not txn_data.fx_rate:
             await stamp_primary_amount(session, user_id, incoming)
+        # A charge claimed by a shared bill takes the bill's group split.
+        await recurring_split_service.split_occurrence(session, incoming, recurring_link)
 
         imported += 1
         landed.append(incoming)

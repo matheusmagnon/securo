@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime, timezone
+from decimal import Decimal
 from typing import Optional
 
 from sqlalchemy import case, or_, select
@@ -223,6 +224,36 @@ async def _validate_transaction(
         raise ValueError("Linked transaction not found")
 
 
+async def _validate_receiver_transaction(
+    session: AsyncSession,
+    transaction_id: uuid.UUID,
+    receiver_user_id: Optional[uuid.UUID],
+    data: GroupSettlementCreate,
+) -> None:
+    """The credit must be the receiver's, of this amount, and not already
+    the record of another settlement."""
+    tx = await session.get(Transaction, transaction_id)
+    if (
+        tx is None
+        or receiver_user_id is None
+        or tx.user_id != receiver_user_id
+        or tx.type != "credit"
+        or tx.currency != data.currency
+        or Decimal(str(tx.amount)) != Decimal(str(data.amount))
+    ):
+        raise ValueError("Receiver transaction does not match this settlement")
+    taken = await session.execute(
+        select(GroupSettlement.id).where(
+            or_(
+                GroupSettlement.transaction_id == transaction_id,
+                GroupSettlement.receiver_transaction_id == transaction_id,
+            )
+        ).limit(1)
+    )
+    if taken.first() is not None:
+        raise ValueError("Receiver transaction already settles another payment")
+
+
 async def list_settlements(
     session: AsyncSession,
     group_id: uuid.UUID,
@@ -264,6 +295,7 @@ async def create_settlement(
     payload = data.model_dump()
     account_id = payload.pop("account_id", None)
     description = payload.pop("description", None)
+    receiver_existing_id = payload.pop("receiver_transaction_id", None)
 
     # Resolve member metadata once — we need names for descriptions
     # and the to_member's linked_user_id for the receiver-side credit.
@@ -313,7 +345,14 @@ async def create_settlement(
     # user and has a checking/savings account, record the cash-in side
     # so their books reflect the actual money received.
     receiver_tx_id = None
-    if receiver_user_id is not None:
+    if receiver_existing_id is not None:
+        # The receiver already has the money on record (bank sync): link
+        # that credit rather than writing a second one.
+        await _validate_receiver_transaction(
+            session, receiver_existing_id, receiver_user_id, data
+        )
+        receiver_tx_id = receiver_existing_id
+    elif receiver_user_id is not None:
         receiver_desc = description or f"Acerto · {group.name} · {from_name}"
         receiver_tx = await _create_receiver_credit(
             session,

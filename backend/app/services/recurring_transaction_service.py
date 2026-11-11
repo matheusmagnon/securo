@@ -12,7 +12,7 @@ from app.models.bank_connection import BankConnection
 from app.models.recurring_transaction import RecurringTransaction
 from app.models.transaction import Transaction
 from app.schemas.recurring_transaction import RecurringTransactionCreate, RecurringTransactionUpdate
-from app.services import category_line_service, recurring_match_service
+from app.services import category_line_service, recurring_match_service, recurring_split_service
 from app.services.credit_card_service import apply_effective_date
 from app.services.fx_rate_service import stamp_primary_amount
 
@@ -34,6 +34,22 @@ async def _verify_account_in_workspace(
     )
     if result.scalar_one_or_none() is None:
         raise ValueError("Account not found")
+
+
+async def _verify_split_group(
+    session: AsyncSession, workspace_id: uuid.UUID, group_id: Optional[uuid.UUID]
+) -> None:
+    """A shared bill's group must be one this workspace can split into."""
+    if group_id is None:
+        return
+    from app.services.rule_service import _group_usable_from_workspace
+
+    if not await _group_usable_from_workspace(session, workspace_id, group_id):
+        raise ValueError("Group not found")
+
+
+def _month_end(day: date) -> date:
+    return day.replace(day=calendar.monthrange(day.year, day.month)[1])
 
 
 async def get_recurring_transactions(
@@ -72,6 +88,7 @@ async def create_recurring_transaction(
         )
     if data.category_id and data.category_lines and data.category_lines.lines:
         raise ValueError("Choose either a category or a split across categories")
+    await _verify_split_group(session, workspace_id, data.split_group_id)
     recurring = RecurringTransaction(
         user_id=user_id,
         workspace_id=workspace_id,
@@ -87,6 +104,10 @@ async def create_recurring_transaction(
         start_date=data.start_date,
         end_date=data.end_date,
         auto_generate=data.auto_generate,
+        generate_at_month_start=data.generate_at_month_start,
+        match_whole_month=data.match_whole_month,
+        installment_offset=data.installment_offset,
+        split_group_id=data.split_group_id,
         next_occurrence=next_occ,
     )
     session.add(recurring)
@@ -127,6 +148,12 @@ async def update_recurring_transaction(
         # category is what an undone split keeps.
         update_data.pop("category_id", None)
     old_amount = recurring.amount
+
+    for flag in ("generate_at_month_start", "match_whole_month", "installment_offset"):
+        if update_data.get(flag) is None:
+            update_data.pop(flag, None)
+    if "split_group_id" in update_data:
+        await _verify_split_group(session, workspace_id, update_data["split_group_id"])
 
     for required in ("weekend_adjustment", "start_date", "frequency"):
         if required in update_data and update_data[required] is None:
@@ -367,6 +394,12 @@ async def generate_pending(
                     RecurringTransaction.weekend_adjustment != "previous_friday",
                     RecurringTransaction.next_occurrence <= latest_cutoff,
                 ),
+                # Bills generated at the start of the month reach to its end.
+                and_(
+                    RecurringTransaction.generate_at_month_start == True,
+                    RecurringTransaction.next_occurrence
+                    <= _month_end(latest_cutoff) + timedelta(days=2),
+                ),
             ),
         )
     )
@@ -380,6 +413,10 @@ async def generate_pending(
         if recurring.account_id is None:
             continue
         cutoff = up_to or cutoffs.get(recurring.workspace_id) or app_today()
+        if recurring.generate_at_month_start:
+            # Every occurrence due this month is written on its first day,
+            # so a shared bill shows as upcoming before it is paid.
+            cutoff = _month_end(cutoff)
         # Generate while the effective date is due. The nominal pointer remains
         # authoritative and is the only date used for schedule advancement and
         # end-date evaluation.
@@ -405,12 +442,14 @@ async def generate_pending(
                 existing_real.recurring_transaction_id = recurring.id
                 # A split bill hands its parts to an uncategorized charge.
                 await category_line_service.apply_template_split(session, existing_real, recurring)
+                await recurring_split_service.split_occurrence(session, existing_real, recurring)
             else:
                 account = await session.get(Account, recurring.account_id)
-                # Only occurrences that already came due reach this point, so
-                # the row is a charge that happened rather than a forecast.
-                # Whether to trust that depends on who else writes to the
-                # account:
+                # Occurrences that already came due reach this point (or, for
+                # bills generated at the start of the month, ones due this
+                # month), so the row stands for a charge rather than a vague
+                # forecast. Whether to trust that depends on who else writes
+                # to the account:
                 #
                 # Bank-synced: the incoming charge often fails to match this
                 # placeholder, and two posted rows for one charge inflate the
@@ -446,6 +485,7 @@ async def generate_pending(
                 session.add(transaction)
                 await session.flush()
                 await stamp_primary_amount(session, user_id, transaction)
+                await recurring_split_service.split_occurrence(session, transaction, recurring)
                 count += 1
 
             # Advance to next occurrence

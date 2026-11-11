@@ -53,6 +53,25 @@ class RecurringTransaction(Base):
     # matched to it (e.g. from bank sync). Either way, incoming real
     # transactions are linked back to the bill to avoid duplicates.
     auto_generate: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
+    # Generate each occurrence on the first day of its month instead of on
+    # its due date, so a bill shows as upcoming before it is paid.
+    generate_at_month_start: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default=false()
+    )
+    # A bill paid any day of its month (an installment paid ahead of its due
+    # date): a charge of the same month answers the occurrence, wherever in
+    # the month it lands, instead of only near the due date.
+    match_whole_month: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default=false()
+    )
+    # Installments of the contract paid before this bill was created, so the
+    # counter follows the contract's numbering ("5 of 156", not "1 of 152").
+    installment_offset: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    # A bill shared with a group: every occurrence starts split equally among
+    # its members, and the real charge that replaces it keeps the split.
+    split_group_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("groups.id", ondelete="SET NULL"), nullable=True
+    )
     next_occurrence: Mapped[date] = mapped_column(Date)
     amount_primary: Mapped[Optional[Decimal]] = mapped_column(Numeric(precision=15, scale=2), nullable=True)
     fx_rate_used: Mapped[Optional[Decimal]] = mapped_column(Numeric(precision=20, scale=10), nullable=True)
@@ -77,3 +96,33 @@ class RecurringTransaction(Base):
         order_by="RecurringTransactionCategoryLine.position",
         lazy="selectin",
     )
+
+    def _count_occurrences(self, before: Optional[date] = None, through: Optional[date] = None) -> int:
+        from app.services.recurring_transaction_service import _advance_date
+
+        intended_day = self.day_of_month or self.start_date.day
+        current, count = self.start_date, 0
+        while count < 5000:
+            if before is not None and current >= before:
+                break
+            if through is not None and current > through:
+                break
+            count += 1
+            current = _advance_date(current, self.frequency, intended_day=intended_day)
+        return count
+
+    @property
+    def occurrences_done(self) -> int:
+        """Occurrences behind the bill: generated, or paid ahead of one."""
+        if self.start_date is None or self.next_occurrence is None:
+            return 0
+        done = self._count_occurrences(before=self.next_occurrence) + (self.installment_offset or 0)
+        total = self.occurrences_total
+        return min(done, total) if total is not None else done
+
+    @property
+    def occurrences_total(self) -> Optional[int]:
+        """How many occurrences a bill with an end date has in all."""
+        if self.start_date is None or self.end_date is None:
+            return None
+        return self._count_occurrences(through=self.end_date) + (self.installment_offset or 0)
