@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.account import Account
 from app.models.group import Group, GroupMember
 from app.models.group_settlement import GroupSettlement
+from app.models.group_settlement_item import GroupSettlementItem
 from app.models.transaction import Transaction
 from app.models.transaction_split import TransactionSplit
 from app.schemas.group_settlement import (
@@ -254,6 +255,58 @@ async def _validate_receiver_transaction(
         raise ValueError("Receiver transaction already settles another payment")
 
 
+async def _set_items(
+    session: AsyncSession,
+    group_id: uuid.UUID,
+    settlement_id: uuid.UUID,
+    transaction_ids: list[uuid.UUID],
+) -> None:
+    """Make ``transaction_ids`` the shared expenses this settlement pays off.
+
+    Each must be split with this group and not already settled by another
+    settlement of the group.
+    """
+    from sqlalchemy import delete
+
+    wanted = list(dict.fromkeys(transaction_ids))
+    if wanted:
+        shared = set(
+            (
+                await session.execute(
+                    select(TransactionSplit.transaction_id)
+                    .join(GroupMember, TransactionSplit.group_member_id == GroupMember.id)
+                    .where(
+                        GroupMember.group_id == group_id,
+                        TransactionSplit.transaction_id.in_(wanted),
+                    )
+                )
+            ).scalars().all()
+        )
+        missing = [t for t in wanted if t not in shared]
+        if missing:
+            raise ValueError(f"Transactions not shared with this group: {missing}")
+        taken = (
+            await session.execute(
+                select(GroupSettlementItem.transaction_id).where(
+                    GroupSettlementItem.group_id == group_id,
+                    GroupSettlementItem.transaction_id.in_(wanted),
+                    GroupSettlementItem.settlement_id != settlement_id,
+                )
+            )
+        ).scalars().all()
+        if taken:
+            raise ValueError(f"Transactions already settled by another settlement: {list(taken)}")
+    await session.execute(
+        delete(GroupSettlementItem).where(GroupSettlementItem.settlement_id == settlement_id)
+    )
+    for tx_id in wanted:
+        session.add(
+            GroupSettlementItem(
+                settlement_id=settlement_id, group_id=group_id, transaction_id=tx_id
+            )
+        )
+
+
 async def list_settlements(
     session: AsyncSession,
     group_id: uuid.UUID,
@@ -296,6 +349,7 @@ async def create_settlement(
     account_id = payload.pop("account_id", None)
     description = payload.pop("description", None)
     receiver_existing_id = payload.pop("receiver_transaction_id", None)
+    item_ids = payload.pop("item_transaction_ids", None)
 
     # Resolve member metadata once — we need names for descriptions
     # and the to_member's linked_user_id for the receiver-side credit.
@@ -371,6 +425,9 @@ async def create_settlement(
         group_id=group_id, workspace_id=workspace_id, **payload
     )
     session.add(settlement)
+    await session.flush()
+    if item_ids:
+        await _set_items(session, group_id, settlement.id, item_ids)
     await session.commit()
     await session.refresh(settlement)
     return settlement
@@ -420,6 +477,10 @@ async def update_settlement(
 
     if "transaction_id" in update_data:
         await _validate_transaction(session, update_data["transaction_id"], workspace_id)
+
+    item_ids = update_data.pop("item_transaction_ids", None)
+    if item_ids is not None:
+        await _set_items(session, group_id, settlement.id, item_ids)
 
     for key, value in update_data.items():
         setattr(settlement, key, value)
@@ -500,6 +561,12 @@ async def delete_settlement(
         from app.services.attachment_service import cleanup_attachment_files
 
         await cleanup_attachment_files(session, [tx.id for tx in created])
+    # Reopen what it paid off (the FK cascades too; explicit for SQLite).
+    from sqlalchemy import delete as _delete
+
+    await session.execute(
+        _delete(GroupSettlementItem).where(GroupSettlementItem.settlement_id == settlement.id)
+    )
     await session.delete(settlement)
     for tx in created:
         await session.delete(tx)

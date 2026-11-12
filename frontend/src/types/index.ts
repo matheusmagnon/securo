@@ -574,6 +574,51 @@ export interface GroupOverview {
   contracts: GroupOverviewContract[]
 }
 
+export interface NextSettlementItem {
+  transaction_id: string
+  date: string
+  description: string
+  amount: number
+  currency: string
+  type: 'debit' | 'credit'
+  installment: string | null
+  payer_member_id: string | null
+  payer_name: string | null
+  shares: { member_id: string; name: string | null; amount: number }[]
+  // card_bill: due date of its card bill · card: bill unknown · paid ·
+  // upcoming: dated later · planned: recurring placeholder, not paid yet
+  reference_kind: 'card_bill' | 'card' | 'paid' | 'upcoming' | 'planned'
+  reference_date: string
+  bill_state: string | null
+  estimated: boolean
+  confirmed: boolean
+  bucket: 'next' | 'later'
+  // Viewer's side: + the others owe the viewer, - the viewer owes them.
+  you_net: number
+  net_by_member: { member_id: string; amount: number }[]
+}
+
+export interface NextSettlement {
+  group_id: string
+  self_member_id: string | null
+  currency: string
+  today: string
+  last_settlement_date: string | null
+  next_settlement_date: string | null
+  items: NextSettlementItem[]
+  next_confirmed_total: number
+  next_total_with_planned: number
+  later_total: number
+  settlements: {
+    id: string
+    date: string
+    amount: number
+    from_member_id: string
+    to_member_id: string
+    item_count: number
+  }[]
+}
+
 export interface GroupBalances {
   group_id: string
   self_member_id: string | null

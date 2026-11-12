@@ -51,8 +51,12 @@ import {
 import { CategoryIcon } from '@/components/category-icon'
 import { DatePickerInput } from '@/components/ui/date-picker-input'
 import { PageHeader } from '@/components/page-header'
-import type { GroupMember, GroupSettlement, Transaction } from '@/types'
+import type { GroupMember, GroupSettlement, NextSettlementItem, Transaction } from '@/types'
 import { formatCurrency } from '@/lib/format'
+import {
+  NextSettlementCard,
+  SettlementItemPicker,
+} from '@/components/next-settlement-card'
 
 function SectionCard({ children }: { children: React.ReactNode }) {
   return (
@@ -206,6 +210,13 @@ export default function GroupDetailPage() {
     enabled: !!groupId,
   })
 
+  // Open shared expenses, item by item: what the next settlement covers.
+  const { data: nextSettlement } = useQuery({
+    queryKey: ['groups', groupId, 'next-settlement'],
+    queryFn: () => groupsApi.nextSettlement(groupId),
+    enabled: !!groupId,
+  })
+
   // The recent-activity list stays capped — it feeds the "Recent
   // transactions" card and nothing else.
   const { data: groupTxs } = useQuery({
@@ -311,6 +322,8 @@ export default function GroupDetailPage() {
   const [settleDate, setSettleDate] = useState(localDateString)
   const [settleNotes, setSettleNotes] = useState('')
   const [settleCurrency, setSettleCurrency] = useState('USD')
+  // Shared expenses this settlement pays off (GroupSettlementItem).
+  const [settleItemIds, setSettleItemIds] = useState<Set<string>>(new Set())
   // Optional ledger integration for the payer: 'none' records the
   // settlement only, 'create' makes a fresh debit, 'existing' links a
   // transaction the payer already has.
@@ -358,6 +371,7 @@ export default function GroupDetailPage() {
       groupsApi.settlements.create(groupId, payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['groups', groupId, 'settlements'] })
+      queryClient.invalidateQueries({ queryKey: ['groups', groupId, 'next-settlement'] })
       queryClient.invalidateQueries({ queryKey: ['groups', groupId, 'balances'] })
       queryClient.invalidateQueries({ queryKey: ['groups', groupId, 'settlement-suggestions'] })
       setSettleOpen(false)
@@ -377,6 +391,7 @@ export default function GroupDetailPage() {
       groupsApi.settlements.delete(groupId, settlementId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['groups', groupId, 'settlements'] })
+      queryClient.invalidateQueries({ queryKey: ['groups', groupId, 'next-settlement'] })
       queryClient.invalidateQueries({ queryKey: ['groups', groupId, 'balances'] })
       queryClient.invalidateQueries({ queryKey: ['groups', groupId, 'settlement-suggestions'] })
     },
@@ -410,8 +425,67 @@ export default function GroupDetailPage() {
     setSettlePickedTx(null)
     setSettleTxSearch('')
     setSettleTxQuery('')
+    setSettleItemIds(new Set())
     setSettleOpen(true)
   }
+
+  // Sum of the picked items from the viewer's side, and who pays whom.
+  const itemsPreset = (ids: Set<string>) => {
+    const picked = (nextSettlement?.items ?? []).filter((i) => ids.has(i.transaction_id))
+    const net = picked.reduce((acc, i) => acc + Number(i.you_net), 0)
+    const other = picked.flatMap((i) => i.net_by_member)[0]?.member_id
+    const me = viewerMember?.id
+    if (!other || !me || Math.abs(net) < 0.005) return null
+    return net < 0
+      ? { from: me, to: other, amount: -net }
+      : { from: other, to: me, amount: net }
+  }
+
+  const applyItemSelection = (ids: Set<string>) => {
+    setSettleItemIds(ids)
+    const preset = itemsPreset(ids)
+    if (preset) {
+      setSettleFrom(preset.from)
+      setSettleTo(preset.to)
+      setSettleAmount(preset.amount.toFixed(2))
+    }
+  }
+
+  const openSettleWithItems = (items: NextSettlementItem[]) => {
+    openSettleUp(undefined, undefined, undefined, nextSettlement?.currency)
+    applyItemSelection(new Set(items.map((i) => i.transaction_id)))
+  }
+
+  const toggleIn = (set: Set<string>, id: string) => {
+    const next = new Set(set)
+    if (next.has(id)) next.delete(id)
+    else next.add(id)
+    return next
+  }
+
+  // Link the expenses an earlier settlement (recorded without them) paid off.
+  const [linkSettlementId, setLinkSettlementId] = useState<string | null>(null)
+  const [linkItemIds, setLinkItemIds] = useState<Set<string>>(new Set())
+  const linkMutation = useMutation({
+    mutationFn: ({ settlementId, ids }: { settlementId: string; ids: string[] }) =>
+      groupsApi.settlements.update(groupId, settlementId, { item_transaction_ids: ids }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['groups', groupId, 'next-settlement'] })
+      setLinkSettlementId(null)
+      toast.success(t('splitGroups.itemsLinked'))
+    },
+    onError: (err: unknown) => {
+      const detail =
+        err && typeof err === 'object' && 'response' in err
+          ? (err as { response?: { data?: { detail?: string } } }).response?.data?.detail
+          : undefined
+      toast.error(detail ?? t('common.error'))
+    },
+  })
+  const linkSettlement = nextSettlement?.settlements.find((s) => s.id === linkSettlementId)
+  const linkSum = (nextSettlement?.items ?? [])
+    .filter((i) => linkItemIds.has(i.transaction_id))
+    .reduce((acc, i) => acc + Number(i.you_net), 0)
 
   const saveSettlement = () => {
     if (!settleFrom || !settleTo || !settleAmount) return
@@ -423,6 +497,7 @@ export default function GroupDetailPage() {
       date: settleDate,
       notes: settleNotes.trim() || null,
     }
+    if (settleItemIds.size > 0) payload.item_transaction_ids = [...settleItemIds]
     if (settleTxMode === 'create' && settleAccountId) {
       payload.account_id = settleAccountId
     } else if (settleTxMode === 'existing' && settlePickedTx) {
@@ -897,6 +972,24 @@ export default function GroupDetailPage() {
         )}
       </SectionCard>
 
+      {/* Next settlement */}
+      <NextSettlementCard
+        data={nextSettlement}
+        fmt={{ locale, dateLocale, currency: groupCurrency }}
+        memberName={memberName_}
+        counterpartName={
+          (group.members.filter((m) => m.id !== viewerMember?.id).length === 1
+            ? group.members.find((m) => m.id !== viewerMember?.id)?.name
+            : undefined) ?? t('splitGroups.otherMembers')
+        }
+        canRecord={isOwner && canWrite}
+        onRecord={openSettleWithItems}
+        onLink={(sid) => {
+          setLinkItemIds(new Set())
+          setLinkSettlementId(sid)
+        }}
+      />
+
       {/* Recent transactions */}
       <SectionCard>
         <SectionHeader
@@ -1242,6 +1335,19 @@ export default function GroupDetailPage() {
                 disabled={settleTxMode === 'existing'}
               />
             </div>
+            {nextSettlement && nextSettlement.items.length > 0 && (
+              <div className="space-y-2">
+                <Label>{t('splitGroups.settleItems')}</Label>
+                <p className="text-xs text-muted-foreground">{t('splitGroups.settleItemsHint')}</p>
+                <SettlementItemPicker
+                  items={nextSettlement.items}
+                  selected={settleItemIds}
+                  onToggle={(id) => applyItemSelection(toggleIn(settleItemIds, id))}
+                  fmt={{ locale, dateLocale, currency: groupCurrency }}
+                  memberName={memberName_}
+                />
+              </div>
+            )}
             <div className="space-y-2">
               <Label>{t('splitGroups.notes')}</Label>
               <textarea
@@ -1268,6 +1374,60 @@ export default function GroupDetailPage() {
                 (settleTxMode === 'create' && !settleAccountId) ||
                 (settleTxMode === 'existing' && !settlePickedTx) ||
                 settlementMutation.isPending
+              }
+            >
+              {t('common.save')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!linkSettlementId} onOpenChange={(o) => !o && setLinkSettlementId(null)}>
+        <DialogContent className="sm:max-w-md max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              {linkSettlement
+                ? t('splitGroups.linkItemsTitle', {
+                    date: new Date(linkSettlement.date + 'T00:00:00').toLocaleDateString(dateLocale),
+                  })
+                : t('splitGroups.linkItems')}
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-xs text-muted-foreground">{t('splitGroups.linkItemsHint')}</p>
+          {nextSettlement && (
+            <SettlementItemPicker
+              items={nextSettlement.items}
+              selected={linkItemIds}
+              onToggle={(id) => setLinkItemIds(toggleIn(linkItemIds, id))}
+              fmt={{ locale, dateLocale, currency: groupCurrency }}
+              memberName={memberName_}
+            />
+          )}
+          {linkSettlement && (
+            <div className="text-sm space-y-0.5">
+              <div className="flex justify-between gap-2">
+                <span className="text-muted-foreground">{t('splitGroups.selectedSum')}</span>
+                <span className="tabular-nums font-medium">
+                  {formatCurrency(Math.abs(linkSum), groupCurrency, locale)}
+                </span>
+              </div>
+              <div className="flex justify-between gap-2">
+                <span className="text-muted-foreground">{t('splitGroups.settlementAmount')}</span>
+                <span className="tabular-nums">
+                  {formatCurrency(Number(linkSettlement.amount), groupCurrency, locale)}
+                </span>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setLinkSettlementId(null)}>
+              {t('common.cancel')}
+            </Button>
+            <Button
+              disabled={!linkSettlementId || linkItemIds.size === 0 || linkMutation.isPending}
+              onClick={() =>
+                linkSettlementId &&
+                linkMutation.mutate({ settlementId: linkSettlementId, ids: [...linkItemIds] })
               }
             >
               {t('common.save')}

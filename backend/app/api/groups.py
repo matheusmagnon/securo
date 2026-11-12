@@ -21,6 +21,7 @@ from app.schemas.group import (
     GroupRead,
     GroupSummary,
     GroupUpdate,
+    NextSettlement,
 )
 from app.schemas.group_settlement import (
     GroupSettlementCreate,
@@ -34,6 +35,7 @@ from app.services import (
     group_overview_service,
     group_service,
     group_summary_service,
+    next_settlement_service,
     settlement_service,
     settlement_suggestion_service,
 )
@@ -260,6 +262,21 @@ async def get_balances(
     if balances is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Group not found")
     return balances
+
+
+@router.get("/{group_id}/next-settlement", response_model=NextSettlement)
+async def get_next_settlement(
+    group_id: uuid.UUID,
+    ctx: WorkspaceContext = Depends(current_workspace),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """Open shared expenses, split into the next settlement and later ones."""
+    result = await next_settlement_service.compute_next_settlement(
+        session, group_id, ctx.workspace.id, ctx.user_id
+    )
+    if result is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Group not found")
+    return result
 
 
 @router.get(

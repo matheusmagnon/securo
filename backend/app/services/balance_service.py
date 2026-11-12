@@ -54,42 +54,9 @@ async def compute_balances(
     if not group:
         return None
 
-    members_result = await session.execute(
-        select(GroupMember).where(GroupMember.group_id == group_id)
+    members, member_by_user, default_payer, self_member = await payer_context(
+        session, group, user_id
     )
-    members = list(members_result.scalars().all())
-
-    # get_group_visible projects `is_self` onto the caller in memory, so
-    # read the stored flag with a column select (it bypasses the identity
-    # map): it marks the owner's own member.
-    stored_self_ids = set(
-        (
-            await session.execute(
-                select(GroupMember.id).where(
-                    GroupMember.group_id == group_id,
-                    GroupMember.is_self.is_(True),
-                )
-            )
-        ).scalars().all()
-    )
-    member_by_user = {m.linked_user_id: m.id for m in members if m.linked_user_id is not None}
-    owner_self = next((m for m in members if m.id in stored_self_ids), None)
-
-    # The caller's own member, by the same rule as group_service's "(you)"
-    # tag: the member linked to the caller, else the owner's stored
-    # unlinked self member when the caller is the owner.
-    self_member = next((m for m in members if m.linked_user_id == user_id), None)
-    if self_member is None and user_id == group.user_id and owner_self is not None:
-        if owner_self.linked_user_id is None:
-            self_member = owner_self
-
-    default_payer = owner_self.id if owner_self is not None else None
-    if default_payer is None:
-        default_payer = member_by_user.get(group.user_id)
-    if default_payer is None:
-        # The owner recorded it but isn't a member of the group: the shares
-        # are owed to the owner, who sees them as before.
-        default_payer = _GROUP_OWNER
 
     # (debtor, creditor) -> currency -> Decimal
     owed: dict[tuple[uuid.UUID, uuid.UUID], dict[str, Decimal]] = defaultdict(
@@ -192,3 +159,50 @@ async def compute_balances(
         "lines": await project(owed),
         "upcoming_lines": await project(upcoming),
     }
+
+
+async def payer_context(session: AsyncSession, group, user_id: uuid.UUID):
+    """Who paid each split transaction, and who the caller is.
+
+    Returns (members, member_by_user, default_payer, self_member): the payer
+    of a transaction is ``member_by_user.get(tx.user_id, default_payer)``.
+    """
+    group_id = group.id
+    members_result = await session.execute(
+        select(GroupMember).where(GroupMember.group_id == group_id)
+    )
+    members = list(members_result.scalars().all())
+
+    # get_group_visible projects `is_self` onto the caller in memory, so
+    # read the stored flag with a column select (it bypasses the identity
+    # map): it marks the owner's own member.
+    stored_self_ids = set(
+        (
+            await session.execute(
+                select(GroupMember.id).where(
+                    GroupMember.group_id == group_id,
+                    GroupMember.is_self.is_(True),
+                )
+            )
+        ).scalars().all()
+    )
+    member_by_user = {m.linked_user_id: m.id for m in members if m.linked_user_id is not None}
+    owner_self = next((m for m in members if m.id in stored_self_ids), None)
+
+    # The caller's own member, by the same rule as group_service's "(you)"
+    # tag: the member linked to the caller, else the owner's stored
+    # unlinked self member when the caller is the owner.
+    self_member = next((m for m in members if m.linked_user_id == user_id), None)
+    if self_member is None and user_id == group.user_id and owner_self is not None:
+        if owner_self.linked_user_id is None:
+            self_member = owner_self
+
+    default_payer = owner_self.id if owner_self is not None else None
+    if default_payer is None:
+        default_payer = member_by_user.get(group.user_id)
+    if default_payer is None:
+        # The owner recorded it but isn't a member of the group: the shares
+        # are owed to the owner, who sees them as before.
+        default_payer = _GROUP_OWNER
+
+    return members, member_by_user, default_payer, self_member

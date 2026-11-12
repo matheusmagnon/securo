@@ -33,6 +33,8 @@ class GroupSettlementCreate(GroupSettlementBase):
     # The receiver's own record of the money arriving (a synced credit),
     # linked instead of writing a mirror credit on their account.
     receiver_transaction_id: Optional[uuid.UUID] = None
+    # Shared transactions this settlement pays off (see GroupSettlementItem).
+    item_transaction_ids: Optional[list[uuid.UUID]] = None
 
 
 class GroupSettlementUpdate(BaseModel):
@@ -43,6 +45,8 @@ class GroupSettlementUpdate(BaseModel):
     date: Optional[_Date] = None
     transaction_id: Optional[uuid.UUID] = None
     notes: Optional[str] = None
+    # Replaces the settled items when given ([] unlinks them all).
+    item_transaction_ids: Optional[list[uuid.UUID]] = None
 
 
 class GroupSettlementRead(GroupSettlementBase):

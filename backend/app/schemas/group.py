@@ -91,6 +91,64 @@ class GroupBalances(BaseModel):
     upcoming_lines: list[GroupBalanceLine] = []
 
 
+class NextSettlementShare(BaseModel):
+    member_id: uuid.UUID
+    name: Optional[str] = None
+    amount: Decimal
+
+
+class NextSettlementNet(BaseModel):
+    member_id: uuid.UUID
+    amount: Decimal
+
+
+class NextSettlementItem(BaseModel):
+    transaction_id: uuid.UUID
+    date: _Date
+    description: str
+    amount: Decimal
+    currency: str
+    type: str
+    installment: Optional[str] = None
+    payer_member_id: Optional[uuid.UUID] = None
+    payer_name: Optional[str] = None
+    shares: list[NextSettlementShare] = []
+    # card_bill (due date of its card bill), card (bill unknown), paid,
+    # upcoming (dated later), planned (recurring placeholder, not paid).
+    reference_kind: str
+    reference_date: _Date
+    bill_state: Optional[str] = None
+    estimated: bool = False
+    confirmed: bool
+    bucket: Literal["next", "later"]
+    # Caller's view: + the others owe you, - you owe them.
+    you_net: Decimal
+    net_by_member: list[NextSettlementNet] = []
+
+
+class NextSettlementSettlement(BaseModel):
+    id: uuid.UUID
+    date: _Date
+    amount: Decimal
+    from_member_id: uuid.UUID
+    to_member_id: uuid.UUID
+    item_count: int
+
+
+class NextSettlement(BaseModel):
+    group_id: uuid.UUID
+    self_member_id: Optional[uuid.UUID] = None
+    currency: str
+    today: _Date
+    last_settlement_date: Optional[_Date] = None
+    next_settlement_date: Optional[_Date] = None
+    items: list[NextSettlementItem] = []
+    next_confirmed_total: Decimal
+    next_total_with_planned: Decimal
+    later_total: Decimal
+    settlements: list[NextSettlementSettlement] = []
+
+
 class GroupSummaryMonth(BaseModel):
     # "YYYY-MM"; the client formats it for display.
     month: str

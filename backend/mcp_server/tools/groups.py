@@ -12,7 +12,7 @@ from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.services import balance_service, group_service, settlement_service
+from app.services import balance_service, group_service, next_settlement_service, settlement_service
 from mcp_server.auth import CallContext
 from mcp_server.registry import tool
 from mcp_server.tools._helpers import num, parse_uuid, resolve_workspace_id
@@ -305,3 +305,62 @@ async def get_group_month_overview(
         "balance": lines(ov["balance_lines"]),
         "upcoming_balance": lines(ov["upcoming_lines"]),
     }
+
+
+@tool(
+    name="get_next_settlement",
+    description=(
+        "Which shared expenses go into the group's NEXT settlement (acerto) and "
+        "which wait for a later one, item by item. An expense is open until a "
+        "recorded settlement lists it. Each item has a reference date: card "
+        "charges count on the due date of their card bill, paid bills/Pix on "
+        "the day paid, recurring placeholders are forecasts (confirmed=false) "
+        "until really paid. Items up to `next_settlement_date` (same day of "
+        "month as the last settlement) are bucket 'next'. `you_net` > 0: the "
+        "other member owes the caller; < 0: the caller owes them. Totals: "
+        "`next_confirmed_total` (only confirmed), `next_total_with_planned`, "
+        "`later_total`. A settlement with item_count 0 was recorded without "
+        "items, so its expenses still show as open: say so instead of adding "
+        "them up again. Use for 'o que entra no próximo acerto?', 'quanto vou "
+        "acertar dia 10?', 'o que ainda está em aberto no grupo?'. Read-only; "
+        "the user records settlements in the app."
+    ),
+    parameters={
+        "type": "object",
+        "properties": {
+            "group_id": {"type": "string", "format": "uuid"},
+        },
+        "required": ["group_id"],
+        "additionalProperties": False,
+    },
+    tags=["read", "groups"],
+)
+async def get_next_settlement(
+    *,
+    session: AsyncSession,
+    ctx: CallContext,
+    group_id: str,
+) -> dict[str, Any]:
+    gid = parse_uuid(group_id)
+    if gid is None:
+        return {"error": "group not found or not visible to this user"}
+    ws_id = await resolve_workspace_id(session, ctx)
+    out = await next_settlement_service.compute_next_settlement(session, gid, ws_id, ctx.user_id)
+    if out is None:
+        return {"error": "group not found or not visible to this user"}
+
+    def plain(v: Any) -> Any:
+        if isinstance(v, Decimal):
+            return num(v)
+        if isinstance(v, dict):
+            return {k: plain(x) for k, x in v.items()}
+        if isinstance(v, list):
+            return [plain(x) for x in v]
+        if hasattr(v, "isoformat"):
+            return v.isoformat()
+        if v is not None and not isinstance(v, (str, int, float, bool)):
+            return str(v)
+        return v
+
+    return plain(out)
+

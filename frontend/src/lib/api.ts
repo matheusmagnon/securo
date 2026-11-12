@@ -103,6 +103,7 @@ import type {
   GroupMember,
   GroupSettlement,
   SettlementSuggestion,
+  NextSettlement,
   GroupOverview,
   GroupBalances,
   GroupSummary,
@@ -1051,6 +1052,8 @@ export interface GroupSettlementPayload {
   // The receiver's synced record of the money, linked instead of writing
   // a mirror credit on their account.
   receiver_transaction_id?: string | null
+  // Shared expenses this settlement pays off; on update, replaces them.
+  item_transaction_ids?: string[] | null
 }
 
 export const groups = {
@@ -1106,6 +1109,10 @@ export const groups = {
     delete: async (groupId: string, settlementId: string): Promise<void> => {
       await api.delete(`/groups/${groupId}/settlements/${settlementId}`)
     },
+  },
+  nextSettlement: async (groupId: string): Promise<NextSettlement> => {
+    const { data } = await api.get(`/groups/${groupId}/next-settlement`)
+    return data
   },
   settlementSuggestions: {
     list: async (groupId: string): Promise<SettlementSuggestion[]> => {
