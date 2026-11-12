@@ -751,6 +751,8 @@ def _budget_target(budget: Budget, category_name: str | None) -> dict[str, Any]:
         "Build a preview for adding a one-off transaction (e.g. 'add a "
         "R$50 lunch today'). Validates the account/category exist; "
         "leaves currency to the account's default when not provided.\n\n"
+        "This creates a NEW transaction: to share one that already exists "
+        "(e.g. a synced card charge), use `propose_split_transaction` instead. "
         "Group splits: pass `group_id` + `splits` to attach a Splitwise-"
         "style breakdown. `splits.share_type='equal'` divides the amount "
         "evenly across the listed `member_ids` — perfect for 'crie no "

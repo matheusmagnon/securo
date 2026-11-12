@@ -18,4 +18,5 @@ from mcp_server.tools import (  # noqa: F401
     transfers,
     bills,
     sync,
+    group_splits,
 )

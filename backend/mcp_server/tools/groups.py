@@ -1,9 +1,9 @@
 """Read-only group + member + balance + settlement exposure for the agent.
 
-Splits are written through `propose_create_transaction` (with its
-`group_id` + `splits` parameters) — there's no `propose_create_split`
-tool because splits live attached to the parent transaction, not as
-standalone rows.
+Splits of a new transaction are written through `propose_create_transaction`
+(its `group_id` + `splits` parameters); an existing transaction is shared,
+re-shared or taken out of a group with `propose_split_transaction`
+(group_splits.py).
 """
 from __future__ import annotations
 

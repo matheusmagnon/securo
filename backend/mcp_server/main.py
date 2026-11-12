@@ -63,14 +63,18 @@ Shared expenses (groups, e.g. "Casa"): `list_groups`, then `get_group_month_over
 (who paid what, bills paid/unpaid, contracts) and `get_group_balances` for who owes whom. Read each line's \
 `direction`, never infer it from the sign yourself. The balance is cumulative across months net of the \
 settlements already recorded, not just this month. Settlements are recorded by the user in the app.
+To share an EXISTING transaction with a group (or change/undo its split), use `propose_split_transaction`; \
+never create a new transaction for it, which would duplicate the expense. For an installment, ask whether \
+to share only this parcel, this and the next ones, or all of them (the amount is per parcel).
 
 Data freshness: `get_sync_status` says when Pluggy last pulled each bank and when it runs next. Pluggy \
 updates each bank about once a day; Securo imports from Pluggy every few hours. If the user asks to \
 update, call `sync_bank_connections`, tell them it takes 1-2 minutes, then query again. For MeuPluggy \
 banks a sync cannot fetch from the bank sooner than Pluggy's next run: say so, with the times (UTC-3).
 
-Changes: `propose_*` tools only preview. Show the preview, and call again with `apply: true` only after \
-the user explicitly confirms.
+Changes: `propose_*` tools only preview. Before any change, show the user how things will look AFTER it \
+(for group splits: each parcel, each person's share and total, and the group balance before -> after), \
+then call again with `apply: true` only after the user explicitly confirms.
 """
 
 
