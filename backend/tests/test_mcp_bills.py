@@ -115,6 +115,28 @@ async def test_sync_queues_each_connection_once(session, test_user, test_workspa
     session.add_all([fresh, stale])
     await session.commit()
     out = await call_tool(session, _ctx(test_user, test_workspace), "sync_bank_connections", {})
-    actions = {c["institution"]: c["action"] for c in out["connections"]}
+    actions = {c["bank"]: c["action"] for c in out["connections"]}
     assert actions == {"Banco A": "skipped_recently_synced", "Banco B": "sync_queued"}
     assert sent == [str(stale.id)]
+
+
+@pytest.mark.asyncio
+async def test_sync_status_reports_pluggy_clock_and_real_bank(session, test_user, test_workspace, monkeypatch):
+    from app.models.bank_connection import BankConnection
+    import mcp_server.tools.sync as sync_tool
+
+    async def fake_item(_session, conn):
+        return {"provider_status": "UPDATED", "provider_last_updated_at": "2026-11-11T21:51:17Z",
+                "provider_next_auto_sync_at": None, "on_demand_refresh": False}
+
+    monkeypatch.setattr(sync_tool, "_provider_item", fake_item)
+    conn = BankConnection(id=uuid.uuid4(), user_id=test_user.id, workspace_id=test_workspace.id,
+                          provider="pluggy", external_id="n", institution_name="MeuPluggy",
+                          display_name="MeuPluggy NuBank", credentials={})
+    session.add(conn)
+    await session.commit()
+    out = await call_tool(session, _ctx(test_user, test_workspace), "get_sync_status", {})
+    row = out["connections"][0]
+    assert row["bank"] == "NuBank"
+    assert row["provider_last_updated_at"] == "2026-11-11T21:51:17Z"
+    assert row["on_demand_refresh"] is False

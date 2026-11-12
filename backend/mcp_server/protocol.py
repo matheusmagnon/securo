@@ -176,6 +176,8 @@ ADDITIVE_PROPOSALS = frozenset(
 
 # Not proposals, but not read-only either: they reach the bank.
 SIDE_EFFECT_TOOLS = frozenset({"sync_bank_connections"})
+# Read-only, but they ask the bank provider live.
+OPEN_WORLD_READS = frozenset({"get_sync_status"})
 
 
 def tool_annotations(name: str, *, is_proposal: bool) -> dict[str, Any]:
@@ -197,6 +199,8 @@ def tool_annotations(name: str, *, is_proposal: bool) -> dict[str, Any]:
     """
     if name in SIDE_EFFECT_TOOLS:
         return {"readOnlyHint": False, "destructiveHint": False, "idempotentHint": True, "openWorldHint": True}
+    if name in OPEN_WORLD_READS:
+        return {"readOnlyHint": True, "openWorldHint": True}
     if not is_proposal:
         return {"readOnlyHint": True, "openWorldHint": False}
     hints: dict[str, Any] = {"readOnlyHint": False, "openWorldHint": False}

@@ -255,6 +255,9 @@ async def get_credit_card_bills(
     want_due = parse_date(due_date) if due_date else None
     today = app_today()
 
+    from mcp_server.tools.sync import bank_names
+
+    banks = await bank_names(session, [a.connection_id for a in accounts])
     cards = []
     for acc in accounts:
         cyc = cycles[acc.id]
@@ -262,6 +265,7 @@ async def get_credit_card_bills(
         card: dict[str, Any] = {
             "account_id": str(acc.id),
             "account_name": acc.name,
+            "bank": banks.get(acc.connection_id),
             "closed_bills": closed,
             "open_and_future_bills": [],
         }

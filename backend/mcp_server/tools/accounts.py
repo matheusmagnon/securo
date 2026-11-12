@@ -34,6 +34,9 @@ async def list_accounts(
     ws_id = await resolve_workspace_id(session, ctx)
     rows = await account_service.get_accounts(session, ws_id, include_closed=include_closed)
     # rows is already a list of dicts (per service contract), but normalize keys.
+    from mcp_server.tools.sync import bank_names
+
+    banks = await bank_names(session, [r.get("connection_id") for r in rows])
     items: list[dict[str, Any]] = []
     for r in rows:
         items.append({
@@ -47,6 +50,8 @@ async def list_accounts(
             "balance_primary": num(r.get("balance_primary")),
             "is_closed": bool(r.get("is_closed", False)),
             "institution": r.get("institution_name"),
+            # The bank itself; for MeuPluggy links `institution` is only the aggregator.
+            "bank": banks.get(r.get("connection_id")) or r.get("institution_name"),
         })
     return {"items": items, "total": len(items)}
 

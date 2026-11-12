@@ -181,6 +181,10 @@ async def test_annotations_tell_a_gateway_which_tools_write(test_user):
     for name, tool in tools.items():
         if name == "sync_bank_connections":
             continue
+        if name == "get_sync_status":
+            # Reads, but asks the bank provider live.
+            assert tool["annotations"] == {"readOnlyHint": True, "openWorldHint": True}
+            continue
         is_proposal = tool["_meta"]["com.usesecuro/tool"]["is_proposal"]
         assert tool["annotations"]["readOnlyHint"] is (not is_proposal), name
 
