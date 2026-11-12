@@ -174,7 +174,13 @@ async def test_annotations_tell_a_gateway_which_tools_write(test_user):
     # A new rule can be applied to existing transactions and overwrite their
     # categories, so "create" in the name is not enough.
     assert "destructiveHint" not in tools["propose_create_rule"]["annotations"]
+    # A bank sync is not a proposal but reaches the bank: not read-only,
+    # though it changes nothing the user wrote.
+    sync = tools["sync_bank_connections"]["annotations"]
+    assert sync["readOnlyHint"] is False and sync["destructiveHint"] is False
     for name, tool in tools.items():
+        if name == "sync_bank_connections":
+            continue
         is_proposal = tool["_meta"]["com.usesecuro/tool"]["is_proposal"]
         assert tool["annotations"]["readOnlyHint"] is (not is_proposal), name
 

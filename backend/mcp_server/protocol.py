@@ -174,6 +174,10 @@ ADDITIVE_PROPOSALS = frozenset(
 )
 
 
+# Not proposals, but not read-only either: they reach the bank.
+SIDE_EFFECT_TOOLS = frozenset({"sync_bank_connections"})
+
+
 def tool_annotations(name: str, *, is_proposal: bool) -> dict[str, Any]:
     """Behaviour hints for one tool, derived from what it can do.
 
@@ -188,8 +192,11 @@ def tool_annotations(name: str, *, is_proposal: bool) -> dict[str, Any]:
       `propose_categorize` overwrites categories in bulk and
       `propose_cancel_recurring_transaction` can hard-delete, and a tool added
       later inherits the cautious default rather than a guess.
-    - Nothing here reaches outside Securo's own ledger.
+    - Nothing here reaches outside Securo's own ledger, except the tools in
+      `SIDE_EFFECT_TOOLS`, which ask the bank for fresh data.
     """
+    if name in SIDE_EFFECT_TOOLS:
+        return {"readOnlyHint": False, "destructiveHint": False, "idempotentHint": True, "openWorldHint": True}
     if not is_proposal:
         return {"readOnlyHint": True, "openWorldHint": False}
     hints: dict[str, Any] = {"readOnlyHint": False, "openWorldHint": False}

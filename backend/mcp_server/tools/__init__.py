@@ -16,4 +16,6 @@ from mcp_server.tools import (  # noqa: F401
     groups,
     rules,
     transfers,
+    bills,
+    sync,
 )

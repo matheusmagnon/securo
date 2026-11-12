@@ -312,7 +312,7 @@ def _consent_page(client: McpOAuthClient, params: dict[str, str], *, error: str 
 <label for="totp">Código 2FA <span style="font-weight:400">(se estiver ativado)</span></label>
 <input id="totp" name="totp" inputmode="numeric" autocomplete="one-time-code" maxlength="8">
 <div class="row">
-<button type="submit" name="decision" value="deny">Cancelar</button>
+<button type="submit" name="decision" value="deny" formnovalidate>Cancelar</button>
 <button type="submit" name="decision" value="allow" class="primary">Autorizar</button>
 </div>
 </form>"""

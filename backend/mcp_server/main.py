@@ -43,6 +43,33 @@ SERVER_INFO = {
 # notifications (the tool set only changes with a deploy).
 CAPABILITIES = {"tools": {"listChanged": False}}
 
+# Read by clients (ChatGPT, Claude) when they connect: how to read Securo's
+# data without guessing. Each rule answers a mistake a model actually made.
+INSTRUCTIONS = """\
+Securo is the user's personal finance app (Brazil, amounts in BRL). Answer in the user's language.
+
+Ground every answer in tool results. Never guess amounts, dates, bank names or which bill a charge is on: \
+if the data does not say, say what is missing. Bank/institution names come only from `institution` fields.
+
+Credit cards: purchases go on monthly bills (faturas). For which bill a charge is on, what is due next, \
+whether a bill was paid or how much the next bill is, call `get_credit_card_bills`; transaction rows also \
+carry `credit_card_bill`. A charge dated on or after a bill's closing date is on the NEXT bill. On a card, \
+status `pending` only means the charge is not on a closed bill yet: it is NOT unpaid and nothing needs to \
+be recorded. A closed bill is paid when its `payment_status` is `paid`. Installments show as `n/N`; future \
+ones arrive as pending charges dated ahead, each on its own future bill.
+
+Shared expenses (groups, e.g. "Casa"): `list_groups`, then `get_group_month_overview` for a month \
+(who paid what, bills paid/unpaid, contracts) and `get_group_balances` for who owes whom. Read each line's \
+`direction`, never infer it from the sign yourself. The balance is cumulative across months net of the \
+settlements already recorded, not just this month. Settlements are recorded by the user in the app.
+
+Data freshness: bank data syncs every few hours. If the user asks to update, or recent charges seem \
+missing, call `sync_bank_connections`, tell the user it takes 1-2 minutes, then query again.
+
+Changes: `propose_*` tools only preview. Show the preview, and call again with `apply: true` only after \
+the user explicitly confirms.
+"""
+
 
 def _err(req_id: Any, code: int, message: str, data: Any = None) -> dict:
     err: dict = {"code": code, "message": message}
@@ -187,6 +214,7 @@ async def _serve_modern(
             "resultType": "complete",
             "supportedVersions": list(p.SUPPORTED_VERSIONS),
             "capabilities": CAPABILITIES,
+            "instructions": INSTRUCTIONS,
             "ttlMs": p.LIST_TTL_MS,
             "cacheScope": p.LIST_CACHE_SCOPE,
             "_meta": result_meta,
@@ -238,6 +266,7 @@ async def _serve_legacy(
             "protocolVersion": negotiated,
             "capabilities": CAPABILITIES,
             "serverInfo": SERVER_INFO,
+            "instructions": INSTRUCTIONS,
         })
 
     if method == "ping":

@@ -9,6 +9,7 @@ from app.models.group import GroupMember
 from app.services import transaction_service
 from mcp_server.auth import CallContext
 from mcp_server.registry import tool
+from mcp_server.tools.bills import load_cycles
 from mcp_server.tools._helpers import num, parse_date, parse_uuid, parse_uuid_list, resolve_workspace_id
 
 
@@ -39,7 +40,12 @@ from mcp_server.tools._helpers import num, parse_date, parse_uuid, parse_uuid_li
         "uncategorized, and each part is {category_id, category_name, "
         "amount, share_pct}. Reports count each part in its own category. "
         "Filtering by a category returns a split row when any part matches, "
-        "and `matched_amount` is the part inside that filter."
+        "and `matched_amount` is the part inside that filter. Credit-card "
+        "rows carry `credit_card_bill`: the bill the charge is on (closed, "
+        "open, future) with its closing and due dates. On a card, `pending` "
+        "only means the charge is not on a closed bill yet — never read it as "
+        "'unpaid' or 'missing a payment'. For bill totals use "
+        "`get_credit_card_bills`."
     ),
     parameters={
         "type": "object",
@@ -71,7 +77,7 @@ from mcp_server.tools._helpers import num, parse_date, parse_uuid, parse_uuid_li
                 "description": "Maximum absolute amount (primary-currency view).",
             },
             "tx_type": {"type": "string", "enum": ["debit", "credit"], "description": "debit = expense, credit = income"},
-            "status": {"type": "string", "enum": ["posted", "pending"], "description": "Filter by posting status: posted = settled, pending = not yet settled."},
+            "status": {"type": "string", "enum": ["posted", "pending"], "description": "Filter by posting status: posted = settled, pending = not yet settled (on a credit card: not on a closed bill yet)."},
             "uncategorized": {"type": "boolean", "default": False, "description": "Only transactions without a category"},
             "exclude_transfers": {"type": "boolean", "default": False, "description": "Exclude transfers between user's own accounts"},
             "tags": {"type": "array", "items": {"type": "string"}, "description": "Match any of these tags"},
@@ -212,6 +218,12 @@ async def list_transactions(
             "members": items,
         }
 
+    cycles = await load_cycles(session, [t.account_id for t in txs if t.account_id])
+
+    def _bill(t: Any) -> dict[str, Any] | None:
+        cyc = cycles.get(t.account_id)
+        return cyc.label(t) if cyc is not None else None
+
     items = [
         {
             "id": str(t.id),
@@ -235,6 +247,7 @@ async def list_transactions(
             "splits": _splits_summary(t),
             "category_lines": _category_lines_summary(t),
             "matched_amount": num(getattr(t, "matched_amount", None)),
+            "credit_card_bill": _bill(t),
         }
         for t in txs
     ]
