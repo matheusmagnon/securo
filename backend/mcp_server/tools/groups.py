@@ -211,8 +211,10 @@ def _direction(amount: Any) -> str:
         "unpaid by the member); upcoming = dated later this month; planned "
         "= a recurring bill not paid yet. `balance` is CUMULATIVE across all "
         "months net of recorded settlements (what is owed now); "
-        "`upcoming_balance` adds charges dated after today (future card "
-        "installments). Each line says `direction` explicitly."
+        "`upcoming_balance` is SEPARATE: only the shares of charges dated "
+        "after today (future card installments), not included in `balance`; "
+        "balance + upcoming_balance is the position once they all land. "
+        "Each line says `direction` explicitly."
     ),
     parameters={
         "type": "object",
